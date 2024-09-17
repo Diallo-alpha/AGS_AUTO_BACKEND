@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class PhotoFormation extends Model
 {
     use HasFactory;
+    protected $guarded = [];
     public function formation() {
         return $this->belongsTo(Formation::class);
     }

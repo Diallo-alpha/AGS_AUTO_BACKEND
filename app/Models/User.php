@@ -53,11 +53,14 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
     public function notes() {
-        return $this->hasMany(NoteFoorrmation::class);
+        return $this->hasMany(NoteForrmation::class);
     }
 
     public function paiements() {
         return $this->hasMany(Paiement::class);
+    }
+    public function profile() {
+        return $this->hasOne(Profil::class);
     }
 
 }

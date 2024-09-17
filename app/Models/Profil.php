@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Ressoource extends Model
+class Profil extends Model
 {
     use HasFactory;
     protected $guarded = [];
-    public function videos() {
-        return $this->hasMany(Video::class);
+    public function user() {
+        return $this->belongsTo(User::class);
     }
+
 }

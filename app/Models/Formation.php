@@ -7,9 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Formation extends Model
 {
+
     use HasFactory;
+    protected $guarded = [];
+
     public function notes() {
-        return $this->hasMany(NoteFoorrmation::class);
+        return $this->hasMany(NoteForrmation::class);
     }
 
     public function paiements() {
