@@ -4,63 +4,78 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFormationsRequest;
 use App\Http\Requests\UpdateFormationsRequest;
-use App\Models\Formations;
+use App\Models\Formation;
+use Illuminate\Support\Facades\Auth;
+use Spatie\Permission\Models\Role;
+
 
 class FormationsController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Afficher la liste des formations.
      */
     public function index()
     {
-        //
+        $formations = Formation::all();
+        return response()->json($formations);
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Ajouter une nouvelle formation (réservé aux admins).
      */
     public function store(StoreFormationsRequest $request)
     {
-        //
+        // Vérifier que l'utilisateur est connecté et possède le rôle 'admin'
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        // Créer une nouvelle formation
+        $formation = Formation::create($request->validated());
+
+        return response()->json(['message' => 'Formation créée avec succès', 'formation' => $formation], 201);
     }
 
     /**
-     * Display the specified resource.
+     * Afficher une formation spécifique.
      */
-    public function show(Formations $formations)
+    public function show(Formation $formation)
     {
-        //
+        return response()->json($formation);
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Mettre à jour une formation (réservé aux admins).
      */
-    public function edit(Formations $formations)
+    public function update(UpdateFormationsRequest $request, Formation $formation)
     {
-        //
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        // Mettre à jour manuellement les champs
+        $formation->nom_formation = $request->input('nom_formation');
+        $formation->description = $request->input('description');
+
+        // Sauvegarder explicitement
+        $formation->save();
+
+        return response()->json(['message' => 'Formation mise à jour avec succès', 'formation' => $formation]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateFormationsRequest $request, Formations $formations)
-    {
-        //
-    }
 
     /**
-     * Remove the specified resource from storage.
+     * Supprimer une formation (réservé aux admins).
      */
-    public function destroy(Formations $formations)
+    public function destroy(Formation $formation)
     {
-        //
+        // Vérifier que l'utilisateur est connecté et possède le rôle 'admin'
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $formation->delete();
+
+        return response()->json(['message' => 'Formation supprimée avec succès']);
     }
 }

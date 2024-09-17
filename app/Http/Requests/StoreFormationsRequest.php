@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class StoreFormationsRequest extends FormRequest
 {
@@ -11,7 +13,7 @@ class StoreFormationsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +24,25 @@ class StoreFormationsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'nom_formation' => 'required|string|max:255',
+            'description' => 'required|string',
         ];
+    }
+
+    public function messages():array{
+        return [
+            'nom_formation.required' => 'Le nom de la formation est obligatoire.',
+            'nom_formation.string' => 'Le nom de la formation doit être une chaîne de caractères.',
+            'nom_formation.max' => 'Le nom de la formation ne doit pas dépasser 255 caractères.',
+            'description.required' => 'La description de la formation est obligatoire.',
+            'description.string' => 'La description de la formation doit être une chaîne de caractères.',
+        ];
+    }
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'success'   => false,
+            'errors'      => $validator->errors()
+        ], 422));
     }
 }

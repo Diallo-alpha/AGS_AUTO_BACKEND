@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UpdateNoteFoorrmationRequest extends FormRequest
 {
@@ -11,7 +13,7 @@ class UpdateNoteFoorrmationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +24,19 @@ class UpdateNoteFoorrmationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+        
         ];
+    }
+    public function messages(): array{
+        return [
+
+        ];
+    }
+    public function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'success'   => false,
+            'errors'      => $validator->errors()
+        ], 422));
     }
 }
