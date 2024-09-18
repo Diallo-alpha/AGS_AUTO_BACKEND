@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FormationsController;
+use App\Http\Controllers\PhotoFormationController;
 use App\Http\Controllers\ProfilController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 
 
 // Route::get('/user', function (Request $request) {
@@ -31,4 +33,10 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/formations', [FormationsController::class, 'store']);
     Route::put('/formations/{formation}', [FormationsController::class, 'update']);
     Route::delete('/formations/{formation}', [FormationsController::class, 'destroy']);
+    //photos formations
+    Route::get('/photo_formations', [PhotoFormationController::class, 'index']);
+    Route::get('/photo_formations/{photoFormation}', [PhotoFormationController::class, 'show']);
+    Route::post('/photo_formations', [PhotoFormationController::class, 'store']);
+    Route::put('/photo_formations/{photoFormation}', [PhotoFormationController::class, 'update']);
+    Route::delete('/photo_formations/{photoFormation}', [PhotoFormationController::class, 'destroy']);
 });
