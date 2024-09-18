@@ -12,11 +12,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Ajouter des alias de middleware pour les rôles et permissions
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+
+        // Désactiver complètement la validation CSRF pour les API
+        $middleware->statefulApi();
+        $middleware->validateCsrfTokens(except: []);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
