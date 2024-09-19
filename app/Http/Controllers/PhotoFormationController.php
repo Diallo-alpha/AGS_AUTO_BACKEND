@@ -59,26 +59,24 @@ class PhotoFormationController extends Controller
      */
     public function update(UpdatePhotoFormationRequest $request, PhotoFormation $photoFormation)
     {
-        // Vérifier que l'utilisateur est bien connecté et qu'il a le rôle d'admin
-        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Valider les données
         $validated = $request->validated();
 
         if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            \Log::info('Fichier reçu:', ['name' => $file->getClientOriginalName(), 'size' => $file->getSize()]);
+
             // Supprimer l'ancienne photo si elle existe
             if ($photoFormation->photo) {
                 Storage::disk('public')->delete($photoFormation->photo);
             }
 
-            // Stocker la nouvelle photo
-            $path = $request->file('photo')->store('formations', 'public');
+            // Stocker le nouveau fichier et mettre à jour l'attribut 'photo'
+            $path = $file->store('formations', 'public');
             $validated['photo'] = $path;
-        } else {
-            // Conserver l'ancienne photo si elle n'est pas modifiée
-            $validated['photo'] = $photoFormation->photo;
         }
 
         // Mettre à jour les informations de la photo
@@ -89,6 +87,7 @@ class PhotoFormationController extends Controller
             'photoFormation' => $photoFormation
         ]);
     }
+
 
     /**
      * Remove the specified resource from storage.

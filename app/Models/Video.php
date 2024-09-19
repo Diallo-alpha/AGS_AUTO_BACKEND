@@ -14,7 +14,7 @@ class Video extends Model
     }
 
     public function ressource() {
-        return $this->belongsTo(Ressoource::class);
+        return $this->belongsTo(Ressource::class);
     }
 
 }
