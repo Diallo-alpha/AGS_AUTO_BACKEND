@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Log;
 use App\Models\Video;
 use App\Models\Formation;
 use Illuminate\Support\Facades\Storage;
@@ -39,22 +40,33 @@ class VideoController extends Controller
      */
     public function store(StoreVideoRequest $request)
     {
-        //verifier si l'utilisateur est connecter et que qu'il a le rôle de admin
         if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
         $validated = $request->validated();
-        //stocker le ficher obtenu dans le storage
+
         try {
-            $path = $request->file('video')->store('videos', 'public');
+            // Log de la taille du fichier
+            Log::info('Taille du fichier envoyé :', ['taille' => $request->file('video')->getSize()]);
+
+            // Stocker sur Wasabi
+            $path = $request->file('video')->store('videos', 'wasabi');
             $validated['video'] = $path;
+
+            // Log de succès
+            Log::info('Vidéo stockée avec succès sur Wasabi', ['path' => $path]);
         } catch (\Exception $e) {
+            Log::error('Erreur lors du téléchargement de la vidéo', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erreur de téléchargement', 'error' => $e->getMessage()], 500);
         }
-        //video creer
+
         Video::create($validated);
-        return response()->json(['message' => 'Vidéo ajoutée avec succès'], 201);
+
+        return response()->json([
+            'message' => 'Vidéo ajoutée avec succès',
+            'video_path' => Storage::disk('wasabi')->url($path)
+        ], 201);
     }
 
     /**
