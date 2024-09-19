@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\VideoController;
+use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
 use App\Http\Controllers\PhotoFormationController;
@@ -52,4 +53,7 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/videos/{video}', [VideoController::class, 'update']);
     Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
     Route::delete('/videos/{video}', [VideoController::class, 'destroy']);
+    //les ressouces
+    Route::apiResource('categories', CategorieController::class);
+
 });
