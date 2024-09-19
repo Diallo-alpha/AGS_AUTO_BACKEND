@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\VideoController;
+use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
@@ -55,5 +56,12 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::delete('/videos/{video}', [VideoController::class, 'destroy']);
     //les ressouces
     Route::apiResource('categories', CategorieController::class);
+    //Produits
+    // Route::apiResource('produits', ProduitController::class);
+    Route::get('/produits', [ProduitController::class, 'index']);
+    Route::get('/produits/{produit}', [ProduitController::class,'show']);
+    Route::post('/produits', [ProduitController::class,'store']);
+    Route::post('/produits/{produit}', [ProduitController::class,'update']);
+    Route::delete('/produits/{produit}', [ProduitController::class,'destroy']);
 
 });
