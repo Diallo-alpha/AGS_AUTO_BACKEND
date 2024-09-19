@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Log;
 use App\Models\Video;
 use App\Models\Formation;
 use Illuminate\Support\Facades\Storage;
@@ -39,22 +40,35 @@ class VideoController extends Controller
      */
     public function store(StoreVideoRequest $request)
     {
-        //verifier si l'utilisateur est connecter et que qu'il a le rôle de admin
+        //return dd(phpinfo());
+        // Vérifier que l'utilisateur est bien connecté et a le rôle d'admin
         if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
+        // Valider les données de la requête
         $validated = $request->validated();
-        //stocker le ficher obtenu dans le storage
+
         try {
-            $path = $request->file('video')->store('videos', 'public');
+            // Stocker la vidéo sur Wasabi
+            $path = $request->file('video')->store('videos', 'wasabi');
             $validated['video'] = $path;
+
+            // Log de succès
+            Log::info('Vidéo stockée avec succès sur Wasabi', ['path' => $path]);
         } catch (\Exception $e) {
+            Log::error('Erreur lors du téléchargement de la vidéo', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Erreur de téléchargement', 'error' => $e->getMessage()], 500);
         }
-        //video creer
+
+        // Enregistrer les informations dans la base de données
         Video::create($validated);
-        return response()->json(['message' => 'Vidéo ajoutée avec succès'], 201);
+
+        // Retourner la réponse avec le lien public de la vidéo
+        return response()->json([
+            'message' => 'Vidéo ajoutée avec succès',
+            'video_url' => Storage::disk('wasabi')->url($path)
+        ], 201);
     }
 
     /**
@@ -78,44 +92,52 @@ class VideoController extends Controller
      */
     public function update(UpdateVideoRequest $request, Video $video)
     {
-        //verifier si l'utilisateur est connecter et que qu'il a le rôle de admin
-        if (!auth()->check() ||!auth()->user()->hasRole('admin')) {
+        // Vérifier si l'utilisateur est connecté et qu'il a le rôle admin
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
         $validated = $request->validated();
 
-        //stocker le ficher si il est modifié
+        // Stocker le fichier si la vidéo est modifiée
         if ($request->hasFile('video')) {
+            // Supprimer l'ancienne vidéo
             if ($video->video) {
-                Storage::disk('public')->delete($video->video);
+                Storage::disk('wasabi')->delete($video->video);
             }
-            $path = $request->file('video')->store('videos', 'public');
+
+            // Stocker la nouvelle vidéo
+            $path = $request->file('video')->store('videos', 'wasabi');
             $validated['video'] = $path;
         }
 
-        //mettre a jour la video
+        // Mettre à jour la vidéo
         $video->update($validated);
-        return response()->json(['message' => 'Vidéo mise à jour avec succès'], 200);
-    }
 
+        return response()->json([
+            'message' => 'Vidéo mise à jour avec succès',
+            'video_url' => Storage::disk('wasabi')->url($path)
+        ], 200);
+    }
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(Video $video)
     {
-        //verifier si l'utilisateur est connecter et que qu'il a le rôle de admin
-        if (!auth()->check() ||!auth()->user()->hasRole('admin')) {
+        // Vérifier si l'utilisateur est connecté et qu'il a le rôle admin
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        //supprimer la video
+        // Supprimer la vidéo
         if ($video->video) {
-            Storage::disk('public')->delete($video->video);
+            Storage::disk('wasabi')->delete($video->video);
         }
+
         $video->delete();
         return response()->json(['message' => 'Vidéo supprimée avec succès'], 200);
     }
+
     //afficher les vidéo d'une formation et ses ressources
     public function videoRessources($formationId)
     {

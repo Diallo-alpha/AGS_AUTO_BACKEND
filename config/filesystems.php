@@ -57,6 +57,17 @@ return [
             'throw' => false,
         ],
 
+        'wasabi' => [
+            'driver' => 's3',
+            'key' => env('WASABI_ACCESS_KEY_ID'),
+            'secret' => env('WASABI_SECRET_ACCESS_KEY'),
+            'region' => 'eu-west-2', // Région pour Paris
+            'bucket' => env('WASABI_BUCKET'),
+            'endpoint' => env('WASABI_ENDPOINT', 'https://s3.eu-west-2.wasabisys.com'),
+            'use_path_style_endpoint' => true, 
+            'throw' => false,
+        ],
+
     ],
 
     /*
