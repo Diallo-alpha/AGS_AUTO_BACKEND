@@ -25,7 +25,7 @@ class StoreVideoRequest extends FormRequest
     {
         return [
             'titre' => 'required|string|max:255',
-            'video' => 'required|file|mimes:mp4,avi,flv,mov,wmv,webm,webp|max:1048576',
+            // 'video' => 'required|file|mimes:mp4,avi,flv,mov,wmv,webm,webp|max:1048576',
             'formation_id' => 'required|exists:formations,id',
             'ressource_id' => 'required|exists:ressources,id',
 

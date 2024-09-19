@@ -25,7 +25,7 @@ class UpdateVideoRequest extends FormRequest
     {
         return [
             'titre' => 'sometimes|string|max:255',
-             'video' => 'sometimes|file|mimes:mp4,avi,flv,mov,wmv|max:1048576',
+             'video' => 'sometimes|file|mimes:mp4,avi,flv,mov,wmv,webm|max:1048576',
             'formation_id' => 'sometimes|required|exists:formations,id',
             'ressource_id' => 'sometimes|required|exists:ressources,id',
         ];
