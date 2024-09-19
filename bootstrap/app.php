@@ -20,8 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Désactiver complètement la validation CSRF pour les API
-        $middleware->statefulApi();
-        $middleware->validateCsrfTokens(except: []);
+        // $middleware->statefulApi();
+        // $middleware->validateCsrfTokens(except: []);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

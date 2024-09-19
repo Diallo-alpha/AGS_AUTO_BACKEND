@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Video;
+use App\Models\Formation;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StoreVideoRequest;
 use App\Http\Requests\UpdateVideoRequest;
@@ -45,11 +46,12 @@ class VideoController extends Controller
 
         $validated = $request->validated();
         //stocker le ficher obtenu dans le storage
-        if ($request->hasFile('video')) {
+        try {
             $path = $request->file('video')->store('videos', 'public');
             $validated['video'] = $path;
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur de téléchargement', 'error' => $e->getMessage()], 500);
         }
-
         //video creer
         Video::create($validated);
         return response()->json(['message' => 'Vidéo ajoutée avec succès'], 201);
@@ -114,4 +116,17 @@ class VideoController extends Controller
         $video->delete();
         return response()->json(['message' => 'Vidéo supprimée avec succès'], 200);
     }
+    //afficher les vidéo d'une formation et ses ressources
+    public function videoRessources($formationId)
+    {
+        // Récupérer la formation avec ses vidéos et les ressources associées aux vidéos
+        $formation = Formation::with(['videos.ressources'])->find($formationId);
+
+        if (!$formation) {
+            return response()->json(['message' => 'Formation non trouvée'], 404);
+        }
+
+        return response()->json($formation);
+    }
+
 }

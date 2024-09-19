@@ -47,8 +47,9 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::delete('/ressources/{ressource}', [RessourceController::class, 'destroy']);
     //Route pour les vidéos
     Route::get('/videos', [VideoController::class, 'index']);
+    Route::post('/video/ajouter', [VideoController::class, 'store']);
     Route::get('/videos/{video}', [VideoController::class, 'show']);
-    Route::post('/videos', [VideoController::class, 'store']);
-    Route::patch('/videos/{video}', [VideoController::class, 'update']);
+    Route::post('/videos/{video}', [VideoController::class, 'update']);
+    Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
     Route::delete('/videos/{video}', [VideoController::class, 'destroy']);
 });

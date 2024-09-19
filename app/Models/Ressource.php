@@ -12,4 +12,9 @@ class Ressource extends Model
     public function videos() {
         return $this->hasMany(Video::class);
     }
+    //ressources
+    public function video()
+    {
+        return $this->belongsTo(Video::class);
+    }
 }
