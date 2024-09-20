@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UpdateCommentaireRequest extends FormRequest
 {
@@ -11,7 +13,7 @@ class UpdateCommentaireRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +24,22 @@ class UpdateCommentaireRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'nom_complet' => 'sometimes|string|max:255',
+            'contenu' => 'sometimes|string|min:3',
         ];
+    }
+    public function messages(): array{
+        return [
+            'nom_complet.string' => 'Le nom complet doit être une chaîne de caractères.',
+            'nom_complet.max' => 'Le nom complet ne doit pas dépasser 255 caractères.',
+            'contenu.string' => 'Le contenu doit être une chaîne de caractères.',
+            'contenu.min' => 'Le contenu doit contenir au moins 3 caractères.',
+        ];
+    }
+    public function failedValidation(Validator $validator){
+        throw new HttpResponseException(response()->json([
+           'success' => false,
+            'errors' => $validator->errors()
+        ], 422));
     }
 }
