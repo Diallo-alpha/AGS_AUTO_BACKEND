@@ -8,6 +8,7 @@ use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
+use App\Http\Controllers\PartenaireController;
 use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\PhotoFormationController;
 
@@ -77,4 +78,10 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     //cmmentaire pour admin
     Route::patch('/commentaires/{commentaire}', [CommentaireController::class, 'update']);
     Route::delete('/commentaires/{commentaire}', [CommentaireController::class, 'destroy']);
+    //route pour les partenaire
+    Route::get('/partenaires', [PartenaireController::class, 'index']);
+    Route::get('/partenaires/{partenaire}', [PartenaireController::class, 'show']);
+    Route::post('/partenaires', [PartenaireController::class, 'store']);
+    Route::post('/partenaires/{partenaire}', [PartenaireController::class, 'update']);
+    Route::delete('/partenaires/{partenaire}', [PartenaireController::class, 'destroy']);
 });
