@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('formations', function (Blueprint $table) {
             $table->id();
             $table->string('nom_formation');
+            $table->integer('prix');
             $table->text('description');
             $table->timestamps();
         });

@@ -6,6 +6,7 @@ use App\Http\Controllers\VideoController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
@@ -28,7 +29,9 @@ Route::post('login', [AuthController::class, 'login']);
 Route::get('/commentaires', [CommentaireController::class, 'index']);
 Route::get('/commentaires/{commentaire}', [CommentaireController::class, 'show']);
 Route::post('/commentaires', [CommentaireController::class, 'store']);
-
+//route pour les articles
+Route::get('/articles', [ArticleController::class, 'index']);
+Route::get('/articles/{article}', [ArticleController::class, 'show']);
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -71,8 +74,6 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/produits/{produit}', [ProduitController::class,'update']);
     Route::delete('/produits/{produit}', [ProduitController::class,'destroy']);
     //route pour article
-    Route::get('/articles', [ArticleController::class, 'index']);
-    Route::get('/articles/{article}', [ArticleController::class, 'show']);
     Route::post('/articles', [ArticleController::class, 'store']);
     Route::post('/articles/{article}', [ArticleController::class, 'update']);
     Route::delete('/articles/{article}', [ArticleController::class, 'destroy']);
@@ -91,4 +92,9 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/services', [ServiceController::class, 'store']);
     Route::post('/services/{service}', [ServiceController::class, 'update']);
     Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
+    //Routes pour les paiements
+    Route::post('paiement/effectuer', [PaiementController::class, 'effectuerPaiement'])->name('paiement.effectuer');
+    Route::get('paiement/success/{id}', [PaiementController::class, 'paymentSuccess'])->name('payment.success');
+    Route::get('paiement/cancel/{id}', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
+    Route::post('formations/{formationId}/inscrire', [PaiementController::class, 'inscrire'])->name('formations.inscrire');
 });
