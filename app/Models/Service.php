@@ -5,13 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Partenaire extends Model
+class Service extends Model
 {
     use HasFactory;
     protected $guarded = [];
 
-    public function service()
+    public function partenaire()
     {
-        return $this->hasOne(Service::class);
+        return $this->belongsTo(Partenaire::class);
     }
 }

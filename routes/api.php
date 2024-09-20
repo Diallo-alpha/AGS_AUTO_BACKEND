@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProduitController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
@@ -84,4 +85,10 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/partenaires', [PartenaireController::class, 'store']);
     Route::post('/partenaires/{partenaire}', [PartenaireController::class, 'update']);
     Route::delete('/partenaires/{partenaire}', [PartenaireController::class, 'destroy']);
+    //route por les services
+    Route::get('/services', [ServiceController::class, 'index']);
+    Route::get('/services/{service}', [ServiceController::class, 'show']);
+    Route::post('/services', [ServiceController::class, 'store']);
+    Route::post('/services/{service}', [ServiceController::class, 'update']);
+    Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
 });
