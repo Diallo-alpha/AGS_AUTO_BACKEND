@@ -8,4 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class Commentaire extends Model
 {
     use HasFactory;
+    protected $guarded = [];
+
+    public function article()
+    {
+        return $this->belongsTo(Article::class);
+    }
 }

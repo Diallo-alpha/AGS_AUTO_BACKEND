@@ -9,4 +9,9 @@ class Article extends Model
 {
     use HasFactory;
     protected $guarded = [];
+
+    //relation avec commentaire
+    public function commentaires() {
+        return $this->hasMany(Commentaire::class);
+    }
 }

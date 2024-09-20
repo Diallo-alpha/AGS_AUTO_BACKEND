@@ -8,6 +8,7 @@ use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
+use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\PhotoFormationController;
 
 
@@ -21,6 +22,11 @@ Route::get('/formations', [FormationsController::class, 'index']);
 Route::get('/formations/{formation}', [FormationsController::class, 'show']);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+//route pour les commentaires
+Route::get('/commentaires', [CommentaireController::class, 'index']);
+Route::post('/commentaires', [CommentaireController::class, 'store']);
+Route::patch('/commentaires/{commentaire}', [CommentaireController::class, 'update']);
+Route::delete('/commentaires/{commentaire}', [CommentaireController::class, 'destroy']);
 
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
