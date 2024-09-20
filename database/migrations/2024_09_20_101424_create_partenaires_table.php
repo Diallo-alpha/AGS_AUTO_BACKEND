@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('partenaires', function (Blueprint $table) {
             $table->id();
-            $table->string('nom_partenaire');
+            $table->string('nom_partenaire')->unique();
             $table->string('logo');
             $table->string('email')->unique();
             $table->string('telephone')->unique();
