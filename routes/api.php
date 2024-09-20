@@ -24,9 +24,8 @@ Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
 //route pour les commentaires
 Route::get('/commentaires', [CommentaireController::class, 'index']);
+Route::get('/commentaires/{commentaire}', [CommentaireController::class, 'show']);
 Route::post('/commentaires', [CommentaireController::class, 'store']);
-Route::patch('/commentaires/{commentaire}', [CommentaireController::class, 'update']);
-Route::delete('/commentaires/{commentaire}', [CommentaireController::class, 'destroy']);
 
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
@@ -75,4 +74,7 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/articles', [ArticleController::class, 'store']);
     Route::post('/articles/{article}', [ArticleController::class, 'update']);
     Route::delete('/articles/{article}', [ArticleController::class, 'destroy']);
+    //cmmentaire pour admin
+    Route::patch('/commentaires/{commentaire}', [CommentaireController::class, 'update']);
+    Route::delete('/commentaires/{commentaire}', [CommentaireController::class, 'destroy']);
 });
