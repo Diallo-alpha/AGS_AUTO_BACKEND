@@ -2,65 +2,108 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Models\Article;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StoreArticleRequest;
 use App\Http\Requests\UpdateArticleRequest;
-use App\Models\Article;
 
 class ArticleController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Afficher tous les articles.
      */
     public function index()
     {
-        //
+        return Article::all();
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Créer un nouvel article.
      */
     public function store(StoreArticleRequest $request)
     {
-        //
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $validatedData = $request->validated();
+
+        // Gestion de l'upload de l'image
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('articles_photos', 'public');
+            $validatedData['photo'] = $path;
+        }
+
+        // Assigner l'utilisateur authentifié comme créateur de l'article
+        $article = Article::create(array_merge($validatedData, ['user_id' => auth()->id()]));
+
+        return response()->json($article, 201);
     }
 
     /**
-     * Display the specified resource.
+     * Afficher un article spécifique.
      */
-    public function show(Article $article)
+    public function show($id)
     {
-        //
+        $article = Article::findOrFail($id);
+
+        return response()->json($article);
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Mettre à jour un article existant.
      */
-    public function edit(Article $article)
+    public function update(UpdateArticleRequest $request, $id)
     {
-        //
+      if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+        $article = Article::findOrFail($id);
+
+        $validatedData = $request->validated();
+
+        // Mise à jour de l'image si une nouvelle est fournie
+        if ($request->hasFile('photo')) {
+            // Supprimer l'ancienne photo
+            if ($article->photo) {
+                Storage::disk('public')->delete($article->photo);
+            }
+
+            // Enregistrer la nouvelle photo
+            $path = $request->file('photo')->store('articles_photos', 'public');
+            $validatedData['photo'] = $path;
+        }
+
+        $article->update($validatedData);
+
+        return response()->json($article, 200);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Supprimer un article.
      */
-    public function update(UpdateArticleRequest $request, Article $article)
+    public function destroy($id)
     {
-        //
+      if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+        $article = Article::findOrFail($id);
+
+
+        // Supprimer la photo liée
+        if ($article->photo) {
+            Storage::disk('public')->delete($article->photo);
+        }
+
+        $article->delete();
+
+        return response()->json(null, 204);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Afficher tous les articles créés par un mentor spécifique.
      */
-    public function destroy(Article $article)
-    {
-        //
-    }
 }
