@@ -18,6 +18,8 @@ return new class extends Migration
             $table->enum('role', ['admin', 'etudiant', 'client']);
             $table->string('email')->unique();
             $table->string('photo')->nullable();
+            $table->unsignedBigInteger('formation_id')->nullable();
+            $table->foreign('formation_id')->references('id')->on('formations');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
