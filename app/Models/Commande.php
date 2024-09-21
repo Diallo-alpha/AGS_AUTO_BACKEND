@@ -11,7 +11,7 @@ class Commande extends Model
     protected $guarded = [];
     public function produits()
     {
-        return $this->belongsToMany(Produit::class, 'commande_produit')
+        return $this->belongsToMany(Produit::class, 'commande_produits')
                     ->withPivot('quantite', 'prix_unitaire')
                     ->withTimestamps();
     }

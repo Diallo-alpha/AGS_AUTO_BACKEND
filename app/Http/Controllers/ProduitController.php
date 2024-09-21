@@ -9,118 +9,121 @@ use App\Http\Requests\UpdateProduitRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
-
 class ProduitController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     * Return all products in JSON format.
+     * Affiche une liste des produits avec pagination.
+     * Retourne tous les produits en format JSON.
      */
     public function index(): JsonResponse
     {
-        $produits = Produit::all();
+        // Ajoute la pagination
+        $produits = Produit::paginate(10); // Par exemple, 10 produits par page
+
         return response()->json($produits, 200);
     }
 
     /**
-     * Store a newly created resource in storage.
-     * Validate and create a new product.
+     * Stocke une nouvelle ressource (produit).
+     * Valide et crée un nouveau produit.
      */
     public function store(StoreProduitRequest $request): JsonResponse
     {
-        //verifier le role de l'utilisateur connecter
+        // Vérifie le rôle de l'utilisateur connecté
         if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
         // Validation des données reçues
         $validated = $request->validated();
-        //stcoker le fichier
-        if ($request->hasFile('image')){
-            $path = $request->file('image')->store('produit', 'public');
+
+        // Stocke le fichier d'image
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('produits', 'public');
             $validated['image'] = $path;
         }
-        //crééer le produit
+
+        // Crée le produit
         $produit = Produit::create($validated);
 
         return response()->json($produit, 201); // Retourne le produit créé
     }
 
     /**
-     * Display the specified resource.
-     * Show a specific product by ID.
+     * Affiche un produit spécifique par son ID.
      */
     public function show(string $id): JsonResponse
     {
         $produit = Produit::find($id);
 
         if (!$produit) {
-            return response()->json(['message' => 'Produit non trouvé'], 404); // Produit non trouvé
+            return response()->json(['message' => 'Produit non trouvé'], 404);
         }
 
-        return response()->json($produit, 200); // Retourne le produit
+        return response()->json($produit, 200);
     }
 
     /**
-     * Update the specified resource in storage.
-     * Update a product by ID.
+     * Met à jour une ressource (produit) par son ID.
+     * Met à jour un produit existant.
      */
     public function update(UpdateProduitRequest $request, string $id): JsonResponse
-{
-    // Vérifier si l'utilisateur est authentifié et possède le rôle 'admin'
-    if (!Auth::check() || !Auth::user()->hasRole('admin')) {
-        return response()->json(['message' => 'Accès refusé'], 403);
-    }
-
-    // Rechercher le produit
-    $produit = Produit::find($id);
-
-    if (!$produit) {
-        return response()->json(['message' => 'Produit non trouvé'], 404); // Produit non trouvé
-    }
-
-    // Valider les données de la requête
-    $validated = $request->validated();
-
-    // Si un fichier image est envoyé, le traiter
-    if ($request->hasFile('image')) {
-        $file = $request->file('image');
-
-        // Log du fichier reçu
-        \Log::info('Fichier reçu:', ['name' => $file->getClientOriginalName(), 'size' => $file->getSize()]);
-
-        // Supprimer l'ancienne image s'il en existe une
-        if ($produit->image) {
-            Storage::disk('public')->delete($produit->image);
+    {
+        // Vérifie si l'utilisateur est authentifié et possède le rôle 'admin'
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Stocker le fichier et obtenir le chemin
-        $filePath = $file->store('produits', 'public');
-        $validated['image'] = $filePath; // Ajouter l'image au tableau des données validées
+        // Rechercher le produit
+        $produit = Produit::find($id);
+
+        if (!$produit) {
+            return response()->json(['message' => 'Produit non trouvé'], 404);
+        }
+
+        // Valider les données de la requête
+        $validated = $request->validated();
+
+        // Gérer le fichier image
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+
+            // Supprimer l'ancienne image s'il en existe une
+            if ($produit->image) {
+                Storage::disk('public')->delete($produit->image);
+            }
+
+            // Stocker la nouvelle image
+            $filePath = $file->store('produits', 'public');
+            $validated['image'] = $filePath;
+        }
+
+        // Mettre à jour le produit
+        $produit->update($validated);
+
+        return response()->json($produit, 200);
     }
 
-    // Mettre à jour le produit avec les champs validés
-    $produit->update($validated);
-
-    return response()->json($produit, 200); // Retourne le produit mis à jour
-}
-
-
-
     /**
-     * Remove the specified resource from storage.
-     * Delete a product by ID.
+     * Supprime une ressource (produit) par son ID.
+     * Supprime un produit et son image associée, le cas échéant.
      */
     public function destroy(string $id): JsonResponse
     {
         $produit = Produit::find($id);
 
         if (!$produit) {
-            return response()->json(['message' => 'Produit non trouvé'], 404); // Produit non trouvé
+            return response()->json(['message' => 'Produit non trouvé'], 404);
         }
 
+        // Supprimer l'image associée
+        if ($produit->image) {
+            Storage::disk('public')->delete($produit->image);
+        }
+
+        // Supprimer le produit
         $produit->delete();
 
-        return response()->json(['message' => 'Produit supprimé avec succès'], 200); // Confirmation suppression
+        return response()->json(['message' => 'Produit supprimé avec succès'], 200);
     }
 }

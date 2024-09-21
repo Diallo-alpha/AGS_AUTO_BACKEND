@@ -6,6 +6,7 @@ use App\Http\Controllers\VideoController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
@@ -35,6 +36,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('refresh', [AuthController::class, 'refresh']);
     Route::patch('update', [AuthController::class, 'update']);
     Route::delete('delete', [AuthController::class, 'delete']);
+    //route pour les commandes
+    Route::post('/commandes', [CommandeController::class, 'store']);
+    Route::get('/commandes/{id}', [CommandeController::class, 'show']);
+    Route::put('/commandes/{id}', [CommandeController::class, 'update']);
+    Route::delete('/commandes/{id}', [CommandeController::class, 'destroy']);
+
 
 });
 
@@ -91,4 +98,7 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/services', [ServiceController::class, 'store']);
     Route::post('/services/{service}', [ServiceController::class, 'update']);
     Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
+    //commandes
+    Route::get('/commandes', [CommandeController::class, 'index']);
+
 });
