@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProduitController;
@@ -36,6 +37,8 @@ Route::get('/articles/{article}', [ArticleController::class, 'show']);
 Route::post('/paytech-ipn', [PaiementController::class, 'handleIPN'])->name('paytech.ipn');
 Route::get('/paiements/success/{id}', [PaiementController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/paiements/cancel/{id}', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
+//callback
+route::post('/paiement/callback', [PaiementController::class, 'handleCallback'])->name('paiement.callback');
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -46,6 +49,17 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/paiements/success', [PaiementController::class, 'getSuccessfulPayments'])->name('paiements.success');
     Route::post('/paiements/effectuer', [PaiementController::class, 'effectuerPaiement'])->name('paiements.effectuer');
     Route::post('/paiements/inscription/{formationId}', [PaiementController::class, 'inscrire'])->name('paiements.inscription');
+    //pannier
+     // Route pour obtenir le panier de l'utilisateur
+     Route::get('/panier', [CartController::class, 'obtenirPanier'])->name('panier.obtenir');
+     // Route pour ajouter un produit ou une formation au panier
+     Route::post('/panier/ajouter', [CartController::class, 'ajouterAuPanier'])->name('panier.ajouter');
+
+    // Route pour retirer un produit ou une formation du panier
+      Route::delete('/panier/retirer', [CartController::class, 'retirerDuPanier'])->name('panier.retirer');
+
+    // Route pour mettre à jour la quantité d'un produit ou d'une formation dans le panier
+       Route::put('/panier/mettre-a-jour', [CartController::class, 'mettreAJourQuantite'])->name('panier.mettreAJour');
 
 });
 

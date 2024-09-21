@@ -41,8 +41,12 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'cart' => 'array',
         ];
     }
+    // protected $casts = [
+
+    // ];
     public function getJWTIdentifier()
     {
         return $this->getKey();

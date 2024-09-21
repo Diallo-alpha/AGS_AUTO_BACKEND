@@ -150,4 +150,73 @@ class PaiementController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Invalid request'], 400);
         }
     }
+    //callback
+    public function handleCallback(Request $request)
+{
+    // Logique pour gérer le callback de PayTech
+    // Log::info('Callback PayTech reçu', $request->all());
+    // Traitez les données du callback ici
+    // Mettez à jour le statut du paiement, etc.
+
+    $apiKey = config('services.paytech.api_key');
+    $apiSecret = config('services.paytech.api_secret');
+
+    if (hash('sha256', $apiSecret) !== $request->input('api_secret_sha256') ||
+        hash('sha256', $apiKey) !== $request->input('api_key_sha256')) {
+        Log::warning('Tentative de callback non autorisée', $request->all());
+        return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+    }
+
+    $token = $request->input('token');
+    $typeEvent = $request->input('type_event');
+    $refCommande = $request->input('ref_command');
+
+    DB::beginTransaction();
+    try {
+        $paiement = Paiement::where('transaction_ref', $token)->first();
+
+        if (!$paiement) {
+            throw new \Exception('Paiement non trouvé pour le token: ' . $token);
+        }
+
+        switch ($typeEvent) {
+            case 'SUCCESS_PAYMENT':
+                $paiement->update([
+                    'status_paiement' => 'payé',
+                    'validation' => true,
+                    'date_paiement' => now(),
+                ]);
+                // Logique supplémentaire pour le paiement réussi (ex: envoi d'email, mise à jour de l'inscription, etc.)
+                break;
+
+            case 'PARTIAL_PAYMENT':
+                $paiement->update([
+                    'status_paiement' => 'partiel',
+                    'montant_paye' => $request->input('amount', 0),
+                ]);
+                // Gérer le paiement partiel
+                break;
+
+            case 'CANCEL_PAYMENT':
+                $paiement->update(['status_paiement' => 'annulé']);
+                // Logique pour gérer l'annulation
+                break;
+
+            default:
+                Log::warning('Type d\'événement PayTech inconnu', ['type' => $typeEvent]);
+                break;
+        }
+
+        DB::commit();
+        Log::info('Paiement mis à jour avec succès', ['id' => $paiement->id, 'status' => $paiement->status_paiement]);
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Erreur lors du traitement du callback PayTech', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        return response()->json(['status' => 'error', 'message' => 'Erreur interne'], 500);
+    }
+}
 }
