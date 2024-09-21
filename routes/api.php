@@ -32,12 +32,20 @@ Route::post('/commentaires', [CommentaireController::class, 'store']);
 //route pour les articles
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{article}', [ArticleController::class, 'show']);
+//route paiement
+Route::post('/paytech-ipn', [PaiementController::class, 'handleIPN'])->name('paytech.ipn');
+Route::get('/paiements/success/{id}', [PaiementController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/paiements/cancel/{id}', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('refresh', [AuthController::class, 'refresh']);
     Route::patch('update', [AuthController::class, 'update']);
     Route::delete('delete', [AuthController::class, 'delete']);
+    //paiement
+    Route::get('/paiements/success', [PaiementController::class, 'getSuccessfulPayments'])->name('paiements.success');
+    Route::post('/paiements/effectuer', [PaiementController::class, 'effectuerPaiement'])->name('paiements.effectuer');
+    Route::post('/paiements/inscription/{formationId}', [PaiementController::class, 'inscrire'])->name('paiements.inscription');
 
 });
 
@@ -92,9 +100,6 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/services', [ServiceController::class, 'store']);
     Route::post('/services/{service}', [ServiceController::class, 'update']);
     Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
-    //Routes pour les paiements
-    Route::post('paiement/effectuer', [PaiementController::class, 'effectuerPaiement'])->name('paiement.effectuer');
-    Route::get('paiement/success/{id}', [PaiementController::class, 'paymentSuccess'])->name('payment.success');
-    Route::get('paiement/cancel/{id}', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
-    Route::post('formations/{formationId}/inscrire', [PaiementController::class, 'inscrire'])->name('formations.inscrire');
+    //paiemnts
+    Route::get('/paiements', [PaiementController::class, 'index'])->name('paiements.index');
 });

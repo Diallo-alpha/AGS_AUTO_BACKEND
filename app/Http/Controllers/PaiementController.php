@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Services\PayTechService;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\StorePaiementRequest;
+use Illuminate\Support\Facades\Log;
 
 class PaiementController extends Controller
 {
@@ -18,7 +19,6 @@ class PaiementController extends Controller
         $this->payTechService = $payTechService;
     }
 
-    // Nouvelle méthode pour récupérer les paiements réussis
     public function getSuccessfulPayments()
     {
         $payments = $this->payTechService->getSuccessfulPayments();
@@ -41,18 +41,16 @@ class PaiementController extends Controller
 
         $result = $this->payTechService->initiatePayment($data);
 
-        // Amélioration des messages d'erreur en cas d'échec
         if ($result['success']) {
             return response()->json(['message' => 'Paiement initié avec succès', 'data' => $result], 200);
         } else {
             return response()->json([
                 'message' => 'Échec du paiement',
-                'error' => $result['message'] ?? 'Erreur interne'
+                'error' => $result['errors'] ?? 'Erreur interne'
             ], 400);
         }
     }
 
-    // Méthode d'inscription avec amélioration
     public function inscrire(Request $request, $formationId)
     {
         $request->validate([
@@ -62,12 +60,10 @@ class PaiementController extends Controller
         $formation = Formation::findOrFail($formationId);
         $user = Auth::user();
 
-        // Vérifier si l'utilisateur a déjà le rôle d'étudiant et lui assigner si besoin
         if (!$user->hasRole('etudiant')) {
             $user->assignRole('etudiant');
         }
 
-        // Créer un paiement
         $paiement = Paiement::create([
             'formation_id' => $formation->id,
             'user_id' => $user->id,
@@ -77,7 +73,6 @@ class PaiementController extends Controller
             'status_paiement' => 'en attente',
         ]);
 
-        // Préparer les données pour PayTech
         $paymentData = [
             'item_name' => $formation->titre,
             'item_price' => $formation->prix,
@@ -90,16 +85,14 @@ class PaiementController extends Controller
 
         $payTechResponse = $this->payTechService->initiatePayment($paymentData);
 
-        // Redirection en cas de succès, sinon afficher une erreur améliorée
         if ($payTechResponse['success']) {
-            $paiement->update(['transaction_ref' => $payTechResponse['transaction_id']]);
+            $paiement->update(['transaction_ref' => $payTechResponse['token']]);
             return redirect($payTechResponse['redirect_url']);
         } else {
             return back()->withErrors('Erreur lors de la demande de paiement : ' . ($payTechResponse['errors'] ?? 'Erreur inconnue.'));
         }
     }
 
-    // Gestion de la validation de paiement réussie
     public function paymentSuccess(Request $request, $id)
     {
         $paiement = Paiement::findOrFail($id);
@@ -108,7 +101,6 @@ class PaiementController extends Controller
             'validation' => true,
         ]);
 
-        // Amélioration : envoyer une notification à l'utilisateur ou le rôle
         $user = Auth::user();
         if (!$user->hasRole('etudiant')) {
             $user->assignRole('etudiant');
@@ -117,12 +109,45 @@ class PaiementController extends Controller
         return redirect()->route('formations.index')->with('success', 'Paiement validé avec succès!');
     }
 
-    // Gestion de l'annulation de paiement
     public function paymentCancel(StorePaiementRequest $request, $id)
     {
         $paiement = Paiement::findOrFail($id);
         $paiement->update(['status_paiement' => 'annulé']);
 
         return redirect()->route('formations.index')->with('error', 'Paiement annulé.');
+    }
+
+    public function handleIPN(Request $request)
+    {
+        $type_event = $request->input('type_event');
+        $custom_field = json_decode($request->input('custom_field'), true);
+        $ref_command = $request->input('ref_command');
+        $item_name = $request->input('item_name');
+        $item_price = $request->input('item_price');
+        $devise = $request->input('devise');
+        $command_name = $request->input('command_name');
+        $env = $request->input('env');
+        $token = $request->input('token');
+        $api_key_sha256 = $request->input('api_key_sha256');
+        $api_secret_sha256 = $request->input('api_secret_sha256');
+
+        $my_api_key = config('services.paytech.api_key');
+        $my_api_secret = config('services.paytech.api_secret');
+
+        if (hash('sha256', $my_api_secret) === $api_secret_sha256 && hash('sha256', $my_api_key) === $api_key_sha256) {
+            $paiement = Paiement::where('transaction_ref', $token)->first();
+            if ($paiement) {
+                $paiement->update([
+                    'status_paiement' => 'payé',
+                    'validation' => true,
+                ]);
+                Log::info('Paiement validé via IPN', ['paiement_id' => $paiement->id]);
+                // Autres actions nécessaires (par exemple, envoi d'e-mail, mise à jour de l'inscription, etc.)
+            }
+            return response()->json(['status' => 'success']);
+        } else {
+            Log::warning('Tentative de notification IPN invalide', ['request' => $request->all()]);
+            return response()->json(['status' => 'error', 'message' => 'Invalid request'], 400);
+        }
     }
 }
