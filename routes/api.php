@@ -12,6 +12,8 @@ use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
 use App\Http\Controllers\PartenaireController;
 use App\Http\Controllers\CommentaireController;
+use App\Http\Controllers\ProgressionController;
+use App\Http\Controllers\NoteFormationController;
 use App\Http\Controllers\PhotoFormationController;
 
 
@@ -101,4 +103,14 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     //commandes
     Route::get('/commandes', [CommandeController::class, 'index']);
 
+});
+
+Route::middleware(['auth', 'role:etudiant'])->group(function() {
+    Route::get('/progressions/{formationId}', [ProgressionController::class, 'show'])->name('progressions.show');
+    Route::post('/progressions', [ProgressionController::class, 'store'])->name('progressions.store');
+    Route::put('/progressions/{id}', [ProgressionController::class, 'update'])->name('progressions.update');
+    Route::post('/notes', [NoteFormationController::class, 'store'])->name('notes.store');
+
+    // Route pour mettre à jour une note existante
+    Route::put('/notes/{noteFormation}', [NoteFormationController::class, 'update'])->name('notes.update');
 });

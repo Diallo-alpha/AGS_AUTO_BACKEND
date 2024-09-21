@@ -12,7 +12,7 @@ class Formation extends Model
     protected $guarded = [];
 
     public function notes() {
-        return $this->hasMany(NoteForrmation::class);
+        return $this->hasMany(NoteFormation::class);
     }
 
     public function paiements() {
@@ -25,5 +25,10 @@ class Formation extends Model
 
     public function videos() {
         return $this->hasMany(Video::class);
+    }
+
+    public function progressions()
+    {
+        return $this->hasMany(Progression::class);
     }
 }
