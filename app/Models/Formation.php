@@ -26,9 +26,16 @@ class Formation extends Model
     public function videos() {
         return $this->hasMany(Video::class);
     }
+<<<<<<< HEAD
 
     public function progressions()
     {
         return $this->hasMany(Progression::class);
+=======
+    //
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+>>>>>>> feature/paiement_formation
     }
 }

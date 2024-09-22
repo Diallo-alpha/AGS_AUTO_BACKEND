@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'paytech' => [
+        'api_key' => env('03bcc07674174039a1f4d43a34ff63eca5e707fddc841b6688fcfcc7f74fda03'),
+        'api_secret' => env('594106b340a0a119597f7496e724b407f87615a868a63136ef31d3546be589d4'),
+    ],
+
 ];

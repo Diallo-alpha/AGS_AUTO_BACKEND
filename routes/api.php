@@ -2,11 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\FormationsController;
@@ -31,7 +33,15 @@ Route::post('login', [AuthController::class, 'login']);
 Route::get('/commentaires', [CommentaireController::class, 'index']);
 Route::get('/commentaires/{commentaire}', [CommentaireController::class, 'show']);
 Route::post('/commentaires', [CommentaireController::class, 'store']);
-
+//route pour les articles
+Route::get('/articles', [ArticleController::class, 'index']);
+Route::get('/articles/{article}', [ArticleController::class, 'show']);
+//route paiement
+Route::post('/paytech-ipn', [PaiementController::class, 'handleIPN'])->name('paytech.ipn');
+route::get('/paiements/success', [PaiementController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/paiements/cancel/{id}', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
+//callback
+// route::post('/paiement/callback', [PaiementController::class, 'handleCallback'])->name('paiement.callback');
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -44,6 +54,22 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/commandes/{id}', [CommandeController::class, 'update']);
     Route::delete('/commandes/{id}', [CommandeController::class, 'destroy']);
 
+    //paiement
+    Route::get('/paiements/success', [PaiementController::class, 'getSuccessfulPayments'])->name('paiements.success');
+    Route::post('/paiements/effectuer', [PaiementController::class, 'effectuerPaiement'])->name('paiements.effectuer');
+    route::get('/paiements/cancel', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
+    Route::post('/paiements/inscription/{formationId}', [PaiementController::class, 'inscrire'])->name('paiements.inscription');
+    //pannier
+     // Route pour obtenir le panier de l'utilisateur
+     Route::get('/panier', [CartController::class, 'obtenirPanier'])->name('panier.obtenir');
+     // Route pour ajouter un produit ou une formation au panier
+     Route::post('/panier/ajouter', [CartController::class, 'ajouterAuPanier'])->name('panier.ajouter');
+
+    // Route pour retirer un produit ou une formation du panier
+      Route::delete('/panier/retirer', [CartController::class, 'retirerDuPanier'])->name('panier.retirer');
+
+    // Route pour mettre à jour la quantité d'un produit ou d'une formation dans le panier
+       Route::put('/panier/mettre-a-jour', [CartController::class, 'mettreAJourQuantite'])->name('panier.mettreAJour');
 
 });
 
@@ -80,8 +106,6 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/produits/{produit}', [ProduitController::class,'update']);
     Route::delete('/produits/{produit}', [ProduitController::class,'destroy']);
     //route pour article
-    Route::get('/articles', [ArticleController::class, 'index']);
-    Route::get('/articles/{article}', [ArticleController::class, 'show']);
     Route::post('/articles', [ArticleController::class, 'store']);
     Route::post('/articles/{article}', [ArticleController::class, 'update']);
     Route::delete('/articles/{article}', [ArticleController::class, 'destroy']);
@@ -113,4 +137,6 @@ Route::middleware(['auth', 'role:etudiant'])->group(function() {
 
     // Route pour mettre à jour une note existante
     Route::put('/notes/{noteFormation}', [NoteFormationController::class, 'update'])->name('notes.update');
+    //paiemnts
+    Route::get('/paiements', [PaiementController::class, 'index'])->name('paiements.index');
 });

@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('formations', function (Blueprint $table) {
-            $table->id();
-            $table->string('nom_formation');
-            $table->integer('prix');
-            $table->text('description');
-            $table->timestamps();
+        Schema::table('users', function (Blueprint $table) {
+            //
+            $table->json('cart')->nullable();
         });
     }
 
@@ -25,6 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('formations');
+        Schema::table('users', function (Blueprint $table) {
+            //
+            $table->dropColumn('cart');
+        });
     }
 };

@@ -26,6 +26,7 @@ class StoreFormationsRequest extends FormRequest
         return [
             'nom_formation' => 'required|string|max:255',
             'description' => 'required|string',
+            'prix' => 'required|integer',
         ];
     }
 
@@ -36,6 +37,8 @@ class StoreFormationsRequest extends FormRequest
             'nom_formation.max' => 'Le nom de la formation ne doit pas dépasser 255 caractères.',
             'description.required' => 'La description de la formation est obligatoire.',
             'description.string' => 'La description de la formation doit être une chaîne de caractères.',
+            'prix.required' => 'Le prix de la formation est obligatoire.',
+            'prix.integer' => 'Le prix de la formation doit être un nombre entier.',
         ];
     }
     public function failedValidation(Validator $validator)
