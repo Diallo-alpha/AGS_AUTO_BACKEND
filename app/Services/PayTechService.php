@@ -8,56 +8,54 @@ use Illuminate\Support\Facades\Log;
 class PayTechService
 {
     const URL = "https://paytech.sn";
-    // Chemins des différentes API utilisées
     const PAYMENT_REQUEST_PATH = '/api/payment/request-payment';
     const PAYMENT_REDIRECT_PATH = '/payment/checkout/';
     const PAYMENT_SUCCESS_PATH = '/api/payment/success-payments';
 
     private $apiKey;
     private $apiSecret;
-    // Paramètres pour la requête de paiement
-    private $query = [];
-    private $currency = 'XOF';
-    private $refCommand = '';
-    private $notificationUrl = [];
     private $client;
 
     public function __construct()
     {
-        // Chargement des clés API depuis le fichier de configuration
         $this->apiKey = config('services.paytech.api_key');
         $this->apiSecret = config('services.paytech.api_secret');
         $this->client = new Client();
+
+        Log::info('Clés API initialisées pour PayTech');
     }
 
-    public function initiatePayment($data)
+    /**
+     * Initie un paiement via PayTech
+     */
+    public function initiatePayment(array $data): array
     {
-         // Préparation des paramètres pour la requête
+        Log::info('Initialisation du paiement avec les données', ['data' => $data]);
+
         $params = [
-            'item_name' => $data['item_name'] ?? '',
-            'item_price' => $data['item_price'] ?? '',
-            'ref_command' => $data['ref_command'] ?? '',
+            'item_name' => $data['description'] ?? 'Paiement',
+            'item_price' => max(100, intval($data['montant'])),
             'currency' => $data['currency'] ?? 'XOF',
-            'ipn_url' => $data['callback_url'] ?? route('paytech.ipn'),
-            'success_url' => $data['success_url'] ?? '',
-            'cancel_url' => $data['cancel_url'] ?? '',
+            'ref_command' => 'REF-' . time(),
+            'ipn_url' => $data['ipn_url'] ?? config('services.paytech.ipn_url'),
+            'success_url' => $data['success_url'] ?? route('paiements.success'),
+            'cancel_url' => $data['cancel_url'] ?? route('payment.cancel'),
             'env' => 'prod',
         ];
 
+        Log::info('Paramètres préparés pour PayTech', ['params' => $params]);
+
         try {
-            // Envoi de la requête POST à l'API PayTech
             $response = $this->client->post(self::URL . self::PAYMENT_REQUEST_PATH, [
                 'form_params' => $params,
                 'headers' => [
                     "API_KEY" => $this->apiKey,
                     "API_SECRET" => $this->apiSecret,
-                    'Content-Type' => 'application/x-www-form-urlencoded;charset=utf-8'
                 ]
             ]);
 
             $jsonResponse = json_decode($response->getBody()->getContents(), true);
-
-            Log::info('Réponse PayTech', ['response' => $jsonResponse]);
+            Log::info('Réponse reçue de PayTech', ['response' => $jsonResponse]);
 
             if (isset($jsonResponse['token'])) {
                 return [
@@ -65,67 +63,74 @@ class PayTechService
                     'token' => $jsonResponse['token'],
                     'redirect_url' => self::URL . self::PAYMENT_REDIRECT_PATH . $jsonResponse['token']
                 ];
-            } else {
-                return [
-                    'success' => false,
-                    'errors' => $jsonResponse['error'] ?? 'Erreur interne'
-                ];
             }
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            Log::error('Erreur PayTech', [
-                'message' => $e->getMessage(),
-                'request' => $e->getRequest(),
-                'response' => $e->hasResponse() ? $e->getResponse() : null,
-            ]);
-            return [
-                'success' => false,
-                'errors' => 'Erreur de communication avec PayTech'
-            ];
+
+            return ['success' => false, 'errors' => $jsonResponse['error'] ?? 'Erreur inconnue'];
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la requête PayTech', ['message' => $e->getMessage()]);
+            return ['success' => false, 'errors' => 'Erreur de communication avec PayTech'];
         }
     }
 
-     // Méthode pour récupérer les paiements réussis
-    public function getSuccessfulPayments()
+    /**
+     * Récupère les paiements réussis
+     */
+    public function getSuccessfulPayments(): ?array
     {
         try {
             $response = $this->client->get(self::URL . self::PAYMENT_SUCCESS_PATH, [
                 'headers' => [
                     "API_KEY" => $this->apiKey,
                     "API_SECRET" => $this->apiSecret,
-                    'Accept' => 'application/json',
                 ]
             ]);
 
-            $data = json_decode($response->getBody()->getContents(), true);
-            return $data;
+            return json_decode($response->getBody()->getContents(), true);
         } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des paiements réussis: ' . $e->getMessage());
+            Log::error('Erreur lors de la récupération des paiements', ['message' => $e->getMessage()]);
             return null;
         }
     }
 
-    // Méthodes pour définir les attributs de la classe
-    public function setQuery($query)
+    /**
+     * Test des clés API PayTech
+     */
+    public function testApiKeys(): bool
     {
-        $this->query = $query;
-        return $this;
-    }
+        $params = [
+            'item_name' => 'Test Payment',
+            'item_price' => 100,
+            'currency' => 'XOF',
+            'ref_command' => 'REF-' . time(),
+            'ipn_url' => config('services.paytech.ipn_url'),
+            'success_url' => route('paiements.success'),
+            'cancel_url' => route('payment.cancel'),
+            'env' => 'prod',
+        ];
 
-    public function setCurrency($currency)
-    {
-        $this->currency = strtolower($currency);
-        return $this;
-    }
+        try {
+            $response = $this->client->post(self::URL . self::PAYMENT_REQUEST_PATH, [
+                'form_params' => $params,
+                'headers' => [
+                    "API_KEY" => $this->apiKey,
+                    "API_SECRET" => $this->apiSecret,
+                ]
+            ]);
 
-    public function setRefCommand($refCommand)
-    {
-        $this->refCommand = $refCommand;
-        return $this;
-    }
+            Log::info('Test des clés API réussi', ['status_code' => $response->getStatusCode()]);
+            return $response->getStatusCode() === 200;
 
-    public function setNotificationUrl($notificationUrl)
-    {
-        $this->notificationUrl = $notificationUrl;
-        return $this;
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            Log::error('Erreur lors du test des clés API', [
+                'message' => $e->getMessage(),
+                'request' => $e->getRequest()->getUri(),
+                'response' => $e->hasResponse() ? $e->getResponse()->getStatusCode() : 'Aucune réponse',
+            ]);
+            return false;
+
+        } catch (\Exception $e) {
+            Log::error('Erreur inattendue lors du test des clés API', ['error' => $e->getMessage()]);
+            return false;
+        }
     }
 }

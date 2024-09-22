@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Paiement;
@@ -7,7 +6,6 @@ use App\Models\Formation;
 use Illuminate\Http\Request;
 use App\Services\PayTechService;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Requests\StorePaiementRequest;
 use Illuminate\Support\Facades\Log;
 
 class PaiementController extends Controller
@@ -19,36 +17,84 @@ class PaiementController extends Controller
         $this->payTechService = $payTechService;
     }
 
-    public function getSuccessfulPayments()
+    /**
+     * Méthode pour initier un paiement
+     */
+    public function effectuerPaiement(Request $request)
     {
-        $payments = $this->payTechService->getSuccessfulPayments();
+        Log::info('Requête de paiement reçue', ['data' => $request->all()]);
 
-        if ($payments) {
-            return view('payments.success', ['payments' => $payments]);
+        if (!$this->payTechService->testApiKeys()) {
+            return response()->json(['message' => 'Clés API PayTech invalides'], 500);
+        }
+
+        $validatedData = $request->validate([
+            'montant' => 'required|numeric|min:100',
+            'description' => 'required|string|max:255',
+            'currency' => 'sometimes|string|in:XOF,USD,EUR',
+            'success_url' => 'sometimes|url',
+            'cancel_url' => 'sometimes|url',
+        ]);
+
+        $result = $this->payTechService->initiatePayment($validatedData);
+
+        if ($result['success']) {
+            $paiement = Paiement::create([
+                'user_id' => Auth::id(),
+                'montant' => $validatedData['montant'],
+                'description' => $validatedData['description'],
+                'currency' => $validatedData['currency'] ?? 'XOF',
+                'transaction_ref' => $result['token'],
+                'status_paiement' => 'en_attente',
+            ]);
+
+            return response()->json([
+                'message' => 'Paiement initié avec succès',
+                'redirect_url' => $result['redirect_url'],
+                'paiement_id' => $paiement->id
+            ]);
         } else {
-            return view('payments.success', ['error' => 'Impossible de récupérer les paiements']);
+            Log::error('Échec de l\'initialisation du paiement', ['error' => $result['errors']]);
+            return response()->json([
+                'message' => 'Échec de l\'initialisation du paiement',
+                'error' => $result['errors']
+            ], 400);
         }
     }
 
-    public function effectuerPaiement(Request $request)
+    /**
+     * Callback pour le paiement réussi
+     */
+    public function paymentSuccess(Request $request)
     {
-        $data = [
-            'montant' => $request->montant,
-            'currency' => 'XOF',
-            'description' => 'Paiement de formation',
-            'callback_url' => route('paiement.callback'),
-        ];
+        $token = $request->query('token');
+        $paiement = Paiement::where('transaction_ref', $token)->first();
 
-        $result = $this->payTechService->initiatePayment($data);
+        if ($paiement) {
+            $paiement->update([
+                'status_paiement' => 'payé',
+                'validation' => true,
+            ]);
 
-        if ($result['success']) {
-            return response()->json(['message' => 'Paiement initié avec succès', 'data' => $result], 200);
+            return redirect()->route('formations.index')->with('success', 'Paiement validé avec succès!');
         } else {
-            return response()->json([
-                'message' => 'Échec du paiement',
-                'error' => $result['errors'] ?? 'Erreur interne'
-            ], 400);
+            return redirect()->route('formations.index')->with('error', 'Paiement non trouvé.');
         }
+    }
+
+    /**
+     * Méthode de gestion des annulations de paiements
+     */
+    public function paymentCancel(Request $request)
+    {
+        $token = $request->query('token');
+        $paiement = Paiement::where('transaction_ref', $token)->first();
+
+        if ($paiement) {
+            $paiement->update(['status_paiement' => 'annulé']);
+        }
+
+        return redirect()->route('formations.index')->with('error', 'Paiement annulé.');
     }
 
     public function inscrire(Request $request, $formationId)
@@ -89,134 +135,8 @@ class PaiementController extends Controller
             $paiement->update(['transaction_ref' => $payTechResponse['token']]);
             return redirect($payTechResponse['redirect_url']);
         } else {
+            Log::error('Erreur lors de la demande de paiement', ['error' => $payTechResponse['errors']]);
             return back()->withErrors('Erreur lors de la demande de paiement : ' . ($payTechResponse['errors'] ?? 'Erreur inconnue.'));
         }
     }
-
-    public function paymentSuccess(Request $request, $id)
-    {
-        $paiement = Paiement::findOrFail($id);
-        $paiement->update([
-            'status_paiement' => 'payé',
-            'validation' => true,
-        ]);
-
-        $user = Auth::user();
-        if (!$user->hasRole('etudiant')) {
-            $user->assignRole('etudiant');
-        }
-
-        return redirect()->route('formations.index')->with('success', 'Paiement validé avec succès!');
-    }
-
-    public function paymentCancel(StorePaiementRequest $request, $id)
-    {
-        $paiement = Paiement::findOrFail($id);
-        $paiement->update(['status_paiement' => 'annulé']);
-
-        return redirect()->route('formations.index')->with('error', 'Paiement annulé.');
-    }
-
-    public function handleIPN(Request $request)
-    {
-        $type_event = $request->input('type_event');
-        $custom_field = json_decode($request->input('custom_field'), true);
-        $ref_command = $request->input('ref_command');
-        $item_name = $request->input('item_name');
-        $item_price = $request->input('item_price');
-        $devise = $request->input('devise');
-        $command_name = $request->input('command_name');
-        $env = $request->input('env');
-        $token = $request->input('token');
-        $api_key_sha256 = $request->input('api_key_sha256');
-        $api_secret_sha256 = $request->input('api_secret_sha256');
-
-        $my_api_key = config('services.paytech.api_key');
-        $my_api_secret = config('services.paytech.api_secret');
-
-        if (hash('sha256', $my_api_secret) === $api_secret_sha256 && hash('sha256', $my_api_key) === $api_key_sha256) {
-            $paiement = Paiement::where('transaction_ref', $token)->first();
-            if ($paiement) {
-                $paiement->update([
-                    'status_paiement' => 'payé',
-                    'validation' => true,
-                ]);
-                Log::info('Paiement validé via IPN', ['paiement_id' => $paiement->id]);
-                // Autres actions nécessaires (par exemple, envoi d'e-mail, mise à jour de l'inscription, etc.)
-            }
-            return response()->json(['status' => 'success']);
-        } else {
-            Log::warning('Tentative de notification IPN invalide', ['request' => $request->all()]);
-            return response()->json(['status' => 'error', 'message' => 'Invalid request'], 400);
-        }
-    }
-    //callback
-    public function handleCallback(Request $request)
-{
-    // Logique pour gérer le callback de PayTech
-    // Log::info('Callback PayTech reçu', $request->all());
-    // Traitez les données du callback ici
-    // Mettez à jour le statut du paiement, etc.
-
-    $apiKey = config('services.paytech.api_key');
-    $apiSecret = config('services.paytech.api_secret');
-
-    if (hash('sha256', $apiSecret) !== $request->input('api_secret_sha256') ||
-        hash('sha256', $apiKey) !== $request->input('api_key_sha256')) {
-        Log::warning('Tentative de callback non autorisée', $request->all());
-        return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
-    }
-
-    $token = $request->input('token');
-    $typeEvent = $request->input('type_event');
-    $refCommande = $request->input('ref_command');
-
-    DB::beginTransaction();
-    try {
-        $paiement = Paiement::where('transaction_ref', $token)->first();
-
-        if (!$paiement) {
-            throw new \Exception('Paiement non trouvé pour le token: ' . $token);
-        }
-
-        switch ($typeEvent) {
-            case 'SUCCESS_PAYMENT':
-                $paiement->update([
-                    'status_paiement' => 'payé',
-                    'validation' => true,
-                    'date_paiement' => now(),
-                ]);
-                // Logique supplémentaire pour le paiement réussi (ex: envoi d'email, mise à jour de l'inscription, etc.)
-                break;
-
-            case 'PARTIAL_PAYMENT':
-                $paiement->update([
-                    'status_paiement' => 'partiel',
-                    'montant_paye' => $request->input('amount', 0),
-                ]);
-                // Gérer le paiement partiel
-                break;
-
-            case 'CANCEL_PAYMENT':
-                $paiement->update(['status_paiement' => 'annulé']);
-                // Logique pour gérer l'annulation
-                break;
-
-            default:
-                Log::warning('Type d\'événement PayTech inconnu', ['type' => $typeEvent]);
-                break;
-        }
-
-        DB::commit();
-        Log::info('Paiement mis à jour avec succès', ['id' => $paiement->id, 'status' => $paiement->status_paiement]);
-        return response()->json(['status' => 'success']);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('Erreur lors du traitement du callback PayTech', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json(['status' => 'error', 'message' => 'Erreur interne'], 500);
-    }
-}
 }
