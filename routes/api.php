@@ -57,7 +57,7 @@ Route::middleware('auth:api')->group(function () {
     //paiement
     Route::get('/paiements/success', [PaiementController::class, 'getSuccessfulPayments'])->name('paiements.success');
     Route::post('/paiements/effectuer', [PaiementController::class, 'effectuerPaiement'])->name('paiements.effectuer');
-    route::get('/paiements/cancel', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
+    // route::get('/paiements/cancel', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
     Route::post('/paiements/inscription/{formationId}', [PaiementController::class, 'inscrire'])->name('paiements.inscription');
     //pannier
      // Route pour obtenir le panier de l'utilisateur
