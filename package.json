@@ -3,7 +3,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vue-cli-service build"
+        "build": "vite build"
     },
     "devDependencies": {
         "axios": "^1.7.4",

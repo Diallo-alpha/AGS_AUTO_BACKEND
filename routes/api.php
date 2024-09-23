@@ -38,7 +38,6 @@ Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{article}', [ArticleController::class, 'show']);
 //route paiement
 Route::post('/paytech-ipn', [PaiementController::class, 'handleIPN'])->name('paytech.ipn');
-route::get('/paiements/success', [PaiementController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/paiements/cancel/{id}', [PaiementController::class, 'paymentCancel'])->name('payment.cancel');
 //callback
 // route::post('/paiement/callback', [PaiementController::class, 'handleCallback'])->name('paiement.callback');
