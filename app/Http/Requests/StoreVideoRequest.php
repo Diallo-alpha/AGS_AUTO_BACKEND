@@ -27,7 +27,6 @@ class StoreVideoRequest extends FormRequest
             'titre' => 'required|string|max:255',
             // 'video' => 'required|file|mimes:mp4,avi,flv,mov,wmv,webm,webp|max:1048576',
             'formation_id' => 'required|exists:formations,id',
-            'ressource_id' => 'required|exists:ressources,id',
 
         ];
     }
@@ -41,8 +40,6 @@ class StoreVideoRequest extends FormRequest
             'video.max' => 'La vidéo ne doit pas dépasser 70Mo.',
             'formation_id.required' => 'La formation est obligatoire.',
             'formation_id.exists' => 'Cette formation n\'existe pas.',
-           'ressource_id.required' => 'La ressource est obligatoire.',
-            'ressource_id.exists' => 'Cette ressource n\'existe pas.',
         ];
     }
     public function failedValidation(Validator $validator)

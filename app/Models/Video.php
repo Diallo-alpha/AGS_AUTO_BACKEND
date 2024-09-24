@@ -13,8 +13,9 @@ class Video extends Model
         return $this->belongsTo(Formation::class);
     }
 
-    public function ressource() {
-        return $this->belongsTo(Ressource::class);
+    public function ressources()
+    {
+        return $this->hasMany(Ressource::class);
     }
 
 }

@@ -25,6 +25,7 @@ class StoreRessourceRequest extends FormRequest
         return [
             'titre' => 'required|string|max:255',
             'documents' => 'required|mimes:pdf,docx,xlsx,txt,jpg,jpeg,png|max:22077',
+            'video_id' => 'required|exists:videos,id',
         ];
     }
     public function messages(): array{
@@ -34,6 +35,9 @@ class StoreRessourceRequest extends FormRequest
             'titre.max' => 'Le titre ne doit pas dépasser 255 caractères',
             'documents.required' => 'Le document est requis',
             'documents.mimes' => 'Le document doit être un document PDF, DOCX, XLSX, TXT, JPG, JPEG, PNG',
+            'documents.max' => 'Le document ne doit pas dépasser 22077 Ko',
+            'video_id.required' => 'La video est requise',
+            'video_id.exists' => 'La video n\'existe pas',
         ];
     }
     public function failedValidation(Validator $validator){
