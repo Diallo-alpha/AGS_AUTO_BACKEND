@@ -125,6 +125,8 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
     //commandes
     Route::get('/commandes', [CommandeController::class, 'index']);
+      //afficher les photos d'une formations
+      Route::get('formations/{formationId}/photos', [PhotoFormationController::class, 'getPhotosByFormation']);
 
 });
 
@@ -133,7 +135,6 @@ Route::middleware(['auth', 'role:etudiant'])->group(function() {
     Route::post('/progressions', [ProgressionController::class, 'store'])->name('progressions.store');
     Route::put('/progressions/{id}', [ProgressionController::class, 'update'])->name('progressions.update');
     Route::post('/notes', [NoteFormationController::class, 'store'])->name('notes.store');
-
     // Route pour mettre à jour une note existante
     Route::put('/notes/{noteFormation}', [NoteFormationController::class, 'update'])->name('notes.update');
     //paiemnts

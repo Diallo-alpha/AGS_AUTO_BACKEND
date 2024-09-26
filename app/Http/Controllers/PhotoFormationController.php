@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePhotoFormationRequest;
 use App\Http\Requests\UpdatePhotoFormationRequest;
+use App\Models\Formation;
 use App\Models\PhotoFormation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -107,5 +108,23 @@ class PhotoFormationController extends Controller
         $photoFormation->delete();
 
         return response()->json(['message' => 'Photo supprimée avec succès']);
+    }
+
+    //afficher les photos d'une formation spécifique
+    public function getPhotosByFormation($formationId)
+    {
+        // Trouver la formation par ID
+        $formation = Formation::findOrFail($formationId);
+
+        // Récupérer les photos associées à la formation
+        $photos = $formation->photos->map(function ($photo) {
+            // Ajouter l'URL complète de la photo
+            if ($photo->photo) {
+                $photo->photo_url = Storage::url($photo->photo);
+            }
+            return $photo;
+        });
+
+        return response()->json($photos);
     }
 }
