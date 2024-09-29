@@ -96,6 +96,7 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/videos/{video}', [VideoController::class, 'update']);
     Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
     Route::delete('/videos/{video}', [VideoController::class, 'destroy']);
+    Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
     //les ressouces
     Route::apiResource('categories', CategorieController::class);
     //Produits

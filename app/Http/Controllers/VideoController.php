@@ -6,6 +6,7 @@ use Log;
 use App\Models\Video;
 use App\Models\Formation;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use App\Http\Requests\StoreVideoRequest;
 use App\Http\Requests\UpdateVideoRequest;
 
@@ -16,17 +17,11 @@ class VideoController extends Controller
      */
     public function index()
     {
-        // Vérifier si l'utilisateur est connecté et s'il a le rôle admin
         if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Récupérer toutes les vidéos et ajouter l'URL complète
-        $videos = Video::all()->map(function($video) {
-            $video->video = Storage::disk('public')->url($video->video);
-            return $video;
-        });
-
+        $videos = Video::all();
         return response()->json($videos);
     }
 
@@ -35,37 +30,60 @@ class VideoController extends Controller
      */
     public function store(StoreVideoRequest $request)
     {
-        // Vérifier que l'utilisateur est bien connecté et a le rôle d'admin
         if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Valider les données de la requête
         $validated = $request->validated();
 
         try {
-            // Stocker la vidéo dans public/storage/videos
-            $path = $request->file('video')->store('videos', 'public');
-            $validated['video'] = $path;
+            Log::info('Début du traitement de la vidéo');
 
-            // Générer l'URL complète de la vidéo
-            $videoUrl = Storage::disk('public')->url($path);
+            // Vérifier si le fichier est présent dans la requête
+            if (!$request->hasFile('video')) {
+                Log::error('Aucun fichier vidéo n\'a été trouvé dans la requête');
+                return response()->json(['message' => 'Erreur : aucun fichier vidéo n\'a été fourni'], 400);
+            }
 
-            // Log de succès
-            Log::info('Vidéo stockée avec succès dans public/storage/videos', ['path' => $path]);
+            $videoFile = $request->file('video');
+            Log::info('Fichier vidéo reçu', [
+                'original_name' => $videoFile->getClientOriginalName(),
+                'size' => $videoFile->getSize(),
+                'mime_type' => $videoFile->getMimeType()
+            ]);
+
+            // Stocker la vidéo dans S3 et obtenir le chemin
+            $path = $videoFile->store('videos', 's3');
+
+            if (!$path) {
+                Log::error('Échec du stockage de la vidéo sur S3');
+                return response()->json(['message' => 'Erreur : le fichier n\'a pas été correctement téléchargé sur S3'], 500);
+            }
+
+            Log::info('Vidéo stockée sur S3', ['s3_path' => $path]);
+
+            // Générer l'URL publique depuis S3
+            $publicUrl = Storage::disk('s3')->url($path);
+            Log::info('URL publique générée', ['public_url' => $publicUrl]);
+
+            // Enregistrer l'URL publique dans la base de données
+            $validated['video'] = $publicUrl;
+
+            $video = Video::create($validated);
+            Log::info('Vidéo enregistrée dans la base de données', ['video_id' => $video->id]);
+
+            return response()->json([
+                'message' => 'Vidéo ajoutée avec succès',
+                'video_url' => $video->video
+            ], 201);
+
         } catch (\Exception $e) {
-            Log::error('Erreur lors du téléchargement de la vidéo', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Erreur de téléchargement', 'error' => $e->getMessage()], 500);
+            Log::error('Erreur lors du traitement de la vidéo', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['message' => 'Erreur de traitement', 'error' => $e->getMessage()], 500);
         }
-
-        // Enregistrer les informations dans la base de données
-        $video = Video::create($validated);
-
-        // Retourner la réponse avec le lien public de la vidéo
-        return response()->json([
-            'message' => 'Vidéo ajoutée avec succès',
-            'video_url' => $videoUrl
-        ], 201);
     }
 
     /**
@@ -73,8 +91,6 @@ class VideoController extends Controller
      */
     public function show(Video $video)
     {
-        // Ajouter l'URL complète de la vidéo
-        $video->video = Storage::disk('public')->url($video->video);
         return response()->json($video);
     }
 
@@ -83,32 +99,53 @@ class VideoController extends Controller
      */
     public function update(UpdateVideoRequest $request, Video $video)
     {
-        // Vérifier si l'utilisateur est connecté et qu'il a le rôle admin
         if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
         $validated = $request->validated();
 
-        // Stocker le fichier si la vidéo est modifiée
-        if ($request->hasFile('video')) {
-            // Supprimer l'ancienne vidéo
-            if ($video->video) {
-                Storage::disk('public')->delete($video->video);
+        try {
+            if ($request->hasFile('video')) {
+                Log::info('Mise à jour de la vidéo', ['video_id' => $video->id]);
+
+                // Supprimer l'ancienne vidéo de S3
+                $oldPath = parse_url($video->video, PHP_URL_PATH);
+                Storage::disk('s3')->delete($oldPath);
+                Log::info('Ancienne vidéo supprimée de S3', ['old_path' => $oldPath]);
+
+                // Stocker la nouvelle vidéo sur S3
+                $path = $request->file('video')->store('videos', 's3');
+
+                if (!$path) {
+                    Log::error('Échec du stockage de la nouvelle vidéo sur S3');
+                    return response()->json(['message' => 'Erreur : le fichier n\'a pas été correctement téléchargé sur S3'], 500);
+                }
+
+                Log::info('Nouvelle vidéo stockée sur S3', ['s3_path' => $path]);
+
+                // Générer la nouvelle URL publique
+                $publicUrl = Storage::disk('s3')->url($path);
+                Log::info('Nouvelle URL publique générée', ['public_url' => $publicUrl]);
+
+                $validated['video'] = $publicUrl;
             }
 
-            // Stocker la nouvelle vidéo
-            $path = $request->file('video')->store('videos', 'public');
-            $validated['video'] = $path;
+            $video->update($validated);
+            Log::info('Vidéo mise à jour dans la base de données', ['video_id' => $video->id]);
+
+            return response()->json([
+                'message' => 'Vidéo mise à jour avec succès',
+                'video_url' => $video->video
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la mise à jour de la vidéo', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['message' => 'Erreur de traitement', 'error' => $e->getMessage()], 500);
         }
-
-        // Mettre à jour la vidéo
-        $video->update($validated);
-
-        return response()->json([
-            'message' => 'Vidéo mise à jour avec succès',
-            'video_url' => isset($path) ? Storage::disk('public')->url($path) : null
-        ], 200);
     }
 
     /**
@@ -116,20 +153,28 @@ class VideoController extends Controller
      */
     public function destroy(Video $video)
     {
-        // Vérifier si l'utilisateur est connecté et qu'il a le rôle admin
         if (!auth()->check() || !auth()->user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Supprimer la vidéo du stockage public si elle existe
-        if ($video->video) {
-            Storage::disk('public')->delete($video->video);
+        try {
+            // Supprimer la vidéo de S3
+            $path = parse_url($video->video, PHP_URL_PATH);
+            Storage::disk('s3')->delete($path);
+            Log::info('Vidéo supprimée de S3', ['s3_path' => $path]);
+
+            $video->delete();
+            Log::info('Vidéo supprimée de la base de données', ['video_id' => $video->id]);
+
+            return response()->json(['message' => 'Vidéo supprimée avec succès'], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la suppression de la vidéo', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['message' => 'Erreur de traitement', 'error' => $e->getMessage()], 500);
         }
-
-        // Supprimer l'enregistrement de la base de données
-        $video->delete();
-
-        return response()->json(['message' => 'Vidéo supprimée avec succès'], 200);
     }
 
     /**
@@ -137,18 +182,29 @@ class VideoController extends Controller
      */
     public function videoRessources($formationId)
     {
-        // Récupérer la formation avec ses vidéos et les ressources associées
         $formation = Formation::with(['videos.ressources'])->find($formationId);
 
         if (!$formation) {
             return response()->json(['message' => 'Formation non trouvée'], 404);
         }
 
-        // Ajouter l'URL complète des vidéos
-        $formation->videos->each(function($video) {
-            $video->video = Storage::disk('public')->url($video->video);
-        });
-
         return response()->json($formation);
+    }
+
+    /**
+     * Stream la vidéo.
+     */
+    public function streamVideo($filename)
+    {
+        $path = storage_path('app/public/videos/' . $filename);
+
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        $stream = new \App\Http\VideoStream($path);
+        return response()->stream(function() use ($stream) {
+            $stream->start();
+        });
     }
 }
