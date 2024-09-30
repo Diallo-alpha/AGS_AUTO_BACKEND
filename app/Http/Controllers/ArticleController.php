@@ -17,7 +17,11 @@ class ArticleController extends Controller
      */
     public function index()
     {
-        return Article::all();
+        $articles = Article::all()->map(function ($article) {
+            $article->photo = $article->photo ? asset('storage/' . $article->photo) : null;
+            return $article;
+        });
+        return response()->json($articles);
     }
 
     /**
@@ -40,6 +44,8 @@ class ArticleController extends Controller
         // Assigner l'utilisateur authentifié comme créateur de l'article
         $article = Article::create(array_merge($validatedData, ['user_id' => auth()->id()]));
 
+        $article->photo = $article->photo ? asset('storage/' . $article->photo) : null;
+
         return response()->json($article, 201);
     }
 
@@ -49,6 +55,7 @@ class ArticleController extends Controller
     public function show($id)
     {
         $article = Article::findOrFail($id);
+        $article->photo = $article->photo ? asset('storage/' . $article->photo) : null;
 
         return response()->json($article);
     }
@@ -58,7 +65,7 @@ class ArticleController extends Controller
      */
     public function update(UpdateArticleRequest $request, $id)
     {
-      if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
         $article = Article::findOrFail($id);
@@ -79,6 +86,8 @@ class ArticleController extends Controller
 
         $article->update($validatedData);
 
+        $article->photo = $article->photo ? asset('storage/' . $article->photo) : null;
+
         return response()->json($article, 200);
     }
 
@@ -87,11 +96,10 @@ class ArticleController extends Controller
      */
     public function destroy($id)
     {
-      if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
         $article = Article::findOrFail($id);
-
 
         // Supprimer la photo liée
         if ($article->photo) {
@@ -102,8 +110,4 @@ class ArticleController extends Controller
 
         return response()->json(null, 204);
     }
-
-    /**
-     * Afficher tous les articles créés par un mentor spécifique.
-     */
 }

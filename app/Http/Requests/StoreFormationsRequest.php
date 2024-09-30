@@ -8,29 +8,23 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class StoreFormationsRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
             'nom_formation' => 'required|string|max:255',
             'description' => 'required|string',
             'prix' => 'required|integer',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
     }
 
-    public function messages():array{
+    public function messages(): array
+    {
         return [
             'nom_formation.required' => 'Le nom de la formation est obligatoire.',
             'nom_formation.string' => 'Le nom de la formation doit être une chaîne de caractères.',
@@ -39,8 +33,12 @@ class StoreFormationsRequest extends FormRequest
             'description.string' => 'La description de la formation doit être une chaîne de caractères.',
             'prix.required' => 'Le prix de la formation est obligatoire.',
             'prix.integer' => 'Le prix de la formation doit être un nombre entier.',
+            'image.image' => 'Le fichier doit être une image.',
+            'image.mimes' => 'L\'image doit être de type : jpeg, png, jpg, gif.',
+            'image.max' => 'L\'image ne doit pas dépasser 2Mo.',
         ];
     }
+
     public function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([

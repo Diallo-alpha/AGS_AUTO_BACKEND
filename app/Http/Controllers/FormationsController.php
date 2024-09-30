@@ -1,70 +1,84 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Http\Requests\StoreFormationsRequest;
 use App\Http\Requests\UpdateFormationsRequest;
 use App\Models\Formation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class FormationsController extends Controller
 {
-    /**
-     * Afficher la liste des formations.
-     */
     public function index()
     {
         $formations = Formation::all();
+        foreach ($formations as $formation) {
+            $formation->image = $formation->image ? asset('storage/' . $formation->image) : null;
+        }
         return response()->json($formations);
     }
 
-    /**
-     * Ajouter une nouvelle formation (réservé aux admins).
-     */
     public function store(StoreFormationsRequest $request)
     {
-        // Vérifier que l'utilisateur est connecté et possède le rôle 'admin'
         if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Créer une nouvelle formation
-        $formation = Formation::create($request->validated());
+        $validatedData = $request->validated();
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('formations_image', 'public');
+            $validatedData['image'] = $path;
+        }
+
+        $formation = Formation::create($validatedData);
+
+        $formation->image = $formation->image ? asset('storage/' . $formation->image) : null;
 
         return response()->json(['message' => 'Formation créée avec succès', 'formation' => $formation], 201);
     }
 
-    /**
-     * Afficher une formation spécifique.
-     */
     public function show(Formation $formation)
     {
+        $formation->image = $formation->image ? asset('storage/' . $formation->image) : null;
         return response()->json($formation);
     }
 
-    /**
-     * Mettre à jour une formation (réservé aux admins).
-     */
     public function update(UpdateFormationsRequest $request, Formation $formation)
     {
-        // Vérifier que l'utilisateur est connecté et possède le rôle 'admin'
         if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Mettre à jour les informations de la formation
-        $formation->update($request->validated());
+        $validatedData = $request->validated();
+
+        if ($request->hasFile('image')) {
+            // Supprimer l'ancienne image si elle existe
+            if ($formation->image) {
+                Storage::disk('public')->delete($formation->image);
+            }
+
+            $path = $request->file('image')->store('formations_image', 'public');
+            $validatedData['image'] = $path;
+        }
+
+        $formation->update($validatedData);
+
+        $formation->image = $formation->image ? asset('storage/' . $formation->image) : null;
 
         return response()->json(['message' => 'Formation mise à jour avec succès', 'formation' => $formation]);
     }
 
-    /**
-     * Supprimer une formation (réservé aux admins).
-     */
     public function destroy(Formation $formation)
     {
-        // Vérifier que l'utilisateur est connecté et possède le rôle 'admin'
         if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        // Supprimer l'image associée si elle existe
+        if ($formation->image) {
+            Storage::disk('public')->delete($formation->image);
         }
 
         $formation->delete();
@@ -72,4 +86,3 @@ class FormationsController extends Controller
         return response()->json(['message' => 'Formation supprimée avec succès']);
     }
 }
-

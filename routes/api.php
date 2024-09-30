@@ -74,8 +74,9 @@ Route::middleware('auth:api')->group(function () {
 
 //Route pour admin
 Route::middleware('auth:api', 'role:admin')->group(function () {
+    //route formation admin
     Route::post('/formations', [FormationsController::class, 'store']);
-    Route::put('/formations/{formation}', [FormationsController::class, 'update']);
+    Route::post('/formations/{formation}', [FormationsController::class, 'update']);
     Route::delete('/formations/{formation}', [FormationsController::class, 'destroy']);
     //photos formations
     Route::get('/photo_formations', [PhotoFormationController::class, 'index']);

@@ -16,7 +16,10 @@ class PhotoFormationController extends Controller
      */
     public function index()
     {
-        $photoFormations = PhotoFormation::all();
+        $photoFormations = PhotoFormation::all()->map(function ($photo) {
+            $photo->photo = $photo->photo ? asset('storage/' . $photo->photo) : null;
+            return $photo;
+        });
         return response()->json($photoFormations);
     }
 
@@ -25,7 +28,6 @@ class PhotoFormationController extends Controller
      */
     public function store(StorePhotoFormationRequest $request)
     {
-        // Vérifier que l'utilisateur est bien connecté et qu'il a le rôle d'admin
         if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
@@ -33,13 +35,13 @@ class PhotoFormationController extends Controller
         $validated = $request->validated();
 
         if ($request->hasFile('photo')) {
-            // Stocker le fichier et obtenir le chemin
             $path = $request->file('photo')->store('formations', 'public');
             $validated['photo'] = $path;
         }
 
-        // Créer une nouvelle photo pour la formation
         $photoFormation = PhotoFormation::create($validated);
+
+        $photoFormation->photo = $photoFormation->photo ? asset('storage/' . $photoFormation->photo) : null;
 
         return response()->json([
             'message' => 'Photo ajoutée avec succès',
@@ -52,6 +54,7 @@ class PhotoFormationController extends Controller
      */
     public function show(PhotoFormation $photoFormation)
     {
+        $photoFormation->photo = $photoFormation->photo ? asset('storage/' . $photoFormation->photo) : null;
         return response()->json($photoFormation);
     }
 
@@ -67,21 +70,17 @@ class PhotoFormationController extends Controller
         $validated = $request->validated();
 
         if ($request->hasFile('photo')) {
-            $file = $request->file('photo');
-            \Log::info('Fichier reçu:', ['name' => $file->getClientOriginalName(), 'size' => $file->getSize()]);
-
-            // Supprimer l'ancienne photo si elle existe
             if ($photoFormation->photo) {
                 Storage::disk('public')->delete($photoFormation->photo);
             }
 
-            // Stocker le nouveau fichier et mettre à jour l'attribut 'photo'
-            $path = $file->store('formations', 'public');
+            $path = $request->file('photo')->store('formations', 'public');
             $validated['photo'] = $path;
         }
 
-        // Mettre à jour les informations de la photo
         $photoFormation->update($validated);
+
+        $photoFormation->photo = $photoFormation->photo ? asset('storage/' . $photoFormation->photo) : null;
 
         return response()->json([
             'message' => 'Photo mise à jour avec succès',
@@ -89,18 +88,15 @@ class PhotoFormationController extends Controller
         ]);
     }
 
-
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(PhotoFormation $photoFormation)
     {
-        // Vérifier que l'utilisateur est bien connecté et qu'il a le rôle d'admin
         if (!Auth::check() || !Auth::user()->hasRole('admin')) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Supprimer le fichier de la photo
         if ($photoFormation->photo) {
             Storage::disk('public')->delete($photoFormation->photo);
         }
@@ -113,15 +109,10 @@ class PhotoFormationController extends Controller
     //afficher les photos d'une formation spécifique
     public function getPhotosByFormation($formationId)
     {
-        // Trouver la formation par ID
         $formation = Formation::findOrFail($formationId);
 
-        // Récupérer les photos associées à la formation
         $photos = $formation->photos->map(function ($photo) {
-            // Ajouter l'URL complète de la photo
-            if ($photo->photo) {
-                $photo->photo_url = Storage::url($photo->photo);
-            }
+            $photo->photo = $photo->photo ? asset('storage/' . $photo->photo) : null;
             return $photo;
         });
 
