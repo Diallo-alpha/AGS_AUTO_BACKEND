@@ -16,16 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
-        // Ajouter des alias de middleware pour les rôles et permissions
         $middleware->alias([
+            'JWTAuth' => PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::class,
+            'JWTFactory' => PHPOpenSourceSaver\JWTAuth\Facades\JWTFactory::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
-
-        // Désactiver complètement la validation CSRF pour les API
-        // $middleware->statefulApi();
-        // $middleware->validateCsrfTokens(except: []);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
