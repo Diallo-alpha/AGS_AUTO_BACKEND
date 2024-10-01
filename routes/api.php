@@ -26,10 +26,19 @@ use App\Http\Controllers\PhotoFormationController;
 // })->middleware('auth:sanctum');
 
 //Route public
+//partenaires
+Route::get('/partenaires', [PartenaireController::class, 'index']);
+Route::get('/partenaires/{partenaire}', [PartenaireController::class, 'show']);
+//
 Route::get('/formations', [FormationsController::class, 'index']);
 Route::get('/formations/{formation}', [FormationsController::class, 'show']);
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+//services
+Route::get('/services', [ServiceController::class, 'index']);
+Route::get('/services/{service}', [ServiceController::class, 'show']);
+//vidéos
+Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
 //route pour les commentaires
 Route::get('/commentaires', [CommentaireController::class, 'index']);
 Route::get('/commentaires/{commentaire}', [CommentaireController::class, 'show']);
@@ -44,6 +53,8 @@ Route::get('/paiements/cancel/{id}', [PaytechController::class, 'paymentCancel']
 // route::post('/paiement/callback', [PaytechController::class, 'handleCallback'])->name('paiement.callback');
 //Route pour connexion
 Route::middleware('auth:api')->group(function () {
+    Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');
+
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('refresh', [AuthController::class, 'refresh']);
     Route::patch('update', [AuthController::class, 'update']);
@@ -55,10 +66,11 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/commandes/{id}', [CommandeController::class, 'destroy']);
 
     //paiement
-    Route::get('/paiements/success', [PaytechController::class, 'getSuccessfulPayments'])->name('paiements.success');
-    Route::post('/paiements/effectuer', [PaytechController::class, 'effectuerPaiement'])->name('paiements.effectuer');
+
+    // Route::get('/paiements/success', [PaytechController::class, 'getSuccessfulPayments'])->name('paiements.success');
+    // Route::post('/paiements/effectuer', [PaytechController::class, 'effectuerPaiement'])->name('paiements.effectuer');
     // route::get('/paiements/cancel', [PaytechController::class, 'paymentCancel'])->name('payment.cancel');
-    Route::post('/paiements/inscription/{formationId}', [PaytechController::class, 'inscrire'])->name('paiements.inscription');
+    // Route::post('/paiements/inscription/{formationId}', [PaytechController::class, 'inscrire'])->name('paiements.inscription');
     //pannier
      // Route pour obtenir le panier de l'utilisateur
      Route::get('/panier', [CartController::class, 'obtenirPanier'])->name('panier.obtenir');
@@ -96,7 +108,6 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::post('/video/ajouter', [VideoController::class, 'store']);
     Route::get('/videos/{video}', [VideoController::class, 'show']);
     Route::post('/videos/{video}', [VideoController::class, 'update']);
-    Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
     Route::delete('/videos/{video}', [VideoController::class, 'destroy']);
     Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
     //les ressouces
@@ -115,14 +126,10 @@ Route::middleware('auth:api', 'role:admin')->group(function () {
     Route::patch('/commentaires/{commentaire}', [CommentaireController::class, 'update']);
     Route::delete('/commentaires/{commentaire}', [CommentaireController::class, 'destroy']);
     //route pour les partenaire
-    Route::get('/partenaires', [PartenaireController::class, 'index']);
-    Route::get('/partenaires/{partenaire}', [PartenaireController::class, 'show']);
     Route::post('/partenaires', [PartenaireController::class, 'store']);
     Route::post('/partenaires/{partenaire}', [PartenaireController::class, 'update']);
     Route::delete('/partenaires/{partenaire}', [PartenaireController::class, 'destroy']);
     //route por les services
-    Route::get('/services', [ServiceController::class, 'index']);
-    Route::get('/services/{service}', [ServiceController::class, 'show']);
     Route::post('/services', [ServiceController::class, 'store']);
     Route::post('/services/{service}', [ServiceController::class, 'update']);
     Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
@@ -143,4 +150,3 @@ Route::middleware(['auth', 'role:etudiant'])->group(function() {
     //paiemnts
     Route::get('/paiements', [PaytechController::class, 'index'])->name('paiements.index');
 });
-Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');

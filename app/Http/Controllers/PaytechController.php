@@ -114,4 +114,3 @@ class PaytechController extends Controller
     }
 
 }
-
