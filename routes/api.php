@@ -52,8 +52,9 @@ Route::get('/paiements/cancel/{id}', [PaytechController::class, 'paymentCancel']
 //callback
 // route::post('/paiement/callback', [PaytechController::class, 'handleCallback'])->name('paiement.callback');
 //Route pour connexion
+Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');
 Route::middleware('auth:api')->group(function () {
-    Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');
+
 
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('refresh', [AuthController::class, 'refresh']);
