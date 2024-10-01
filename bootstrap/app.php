@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
         // Ajouter des alias de middleware pour les rôles et permissions
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
