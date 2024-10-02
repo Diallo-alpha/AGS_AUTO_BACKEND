@@ -66,11 +66,17 @@ class PaytechController extends Controller
         // dd($response);
 
         // Vérifier la réponse et rediriger l'utilisateur
-        if ($response['success'] === 1) {
-            return redirect($response['redirect_url']);
-        } else {
-            return redirect()->back()->with('error', $response['errors']);
-        }
+          if ($response['success'] === 1) {
+        return response()->json([
+            'success' => 1,
+            'redirect_url' => $response['redirect_url']
+        ]);
+    } else {
+        return response()->json([
+            'success' => 0,
+            'errors' => $response['errors']
+        ], 400);
+    }
     }
 
     public function handleNotification(Request $request)
