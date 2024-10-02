@@ -12,16 +12,35 @@ use App\Models\Formation;
 
 class CartController extends Controller
 {
+    private function getCart()
+    {
+        if (Auth::check()) {
+            $user = Auth::user();
+            return $user->cart ?? [];
+        } else {
+            return session()->get('cart', []);
+        }
+    }
+
+    private function saveCart($cart)
+    {
+        if (Auth::check()) {
+            $user = Auth::user();
+            $user->cart = $cart;
+            $user->save();
+        } else {
+            session()->put('cart', $cart);
+        }
+    }
+
     public function obtenirPanier()
     {
-        $user = Auth::user();
-        return response()->json(['panier' => $user->cart ?? []]);
+        return response()->json(['panier' => $this->getCart()]);
     }
 
     public function ajouterAuPanier(StorePanierRequest $request)
     {
-        $user = Auth::user();
-        $panier = $user->cart ?? [];
+        $panier = $this->getCart();
 
         $cleItem = $request->item_type . '_' . $request->item_id;
 
@@ -35,14 +54,13 @@ class CartController extends Controller
             $panier[$cleItem] = [
                 'id' => $item->id,
                 'type' => $request->item_type,
-                'nom' => $request->item_type === 'produit' ? $item->nom_produit : $item->nom_formation, 
+                'nom' => $request->item_type === 'produit' ? $item->nom_produit : $item->nom_formation,
                 'prix' => $item->prix,
                 'quantite' => $request->quantity
             ];
         }
 
-        $user->cart = $panier;
-        $user->save();
+        $this->saveCart($panier);
 
         return response()->json(['message' => 'Article ajouté au panier', 'panier' => $panier]);
     }
@@ -54,15 +72,13 @@ class CartController extends Controller
             'item_type' => 'required|in:produit,formation',
         ]);
 
-        $user = Auth::user();
-        $panier = $user->cart ?? [];
+        $panier = $this->getCart();
 
         $cleItem = $request->item_type . '_' . $request->item_id;
 
         if (isset($panier[$cleItem])) {
             unset($panier[$cleItem]);
-            $user->cart = $panier;
-            $user->save();
+            $this->saveCart($panier);
         }
 
         return response()->json(['message' => 'Article retiré du panier', 'panier' => $panier]);
@@ -70,15 +86,13 @@ class CartController extends Controller
 
     public function mettreAJourQuantite(UpdatePanierRequest $request)
     {
-        $user = Auth::user();
-        $panier = $user->cart ?? [];
+        $panier = $this->getCart();
 
         $cleItem = $request->item_type . '_' . $request->item_id;
 
         if (isset($panier[$cleItem])) {
             $panier[$cleItem]['quantite'] = $request->quantity;
-            $user->cart = $panier;
-            $user->save();
+            $this->saveCart($panier);
         }
 
         return response()->json(['message' => 'Quantité mise à jour', 'panier' => $panier]);
