@@ -62,7 +62,18 @@ class PaytechController extends Controller
 
         Log::info('Création du paiement pour', ['user_id' => $user->id, 'formation_id' => $formation->id]);
 
-        $payTech = new PaytechService(env('PAYTECH_API_KEY'), env('PAYTECH_API_SECRET'));
+
+        $apiKey = '3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd';
+        $apiSecret = '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14';
+
+        Log::debug('Utilisation des clés API PayTech de test', [
+            'API_KEY' => $apiKey,
+            'API_SECRET' => substr($apiSecret, 0, 5) . '...',  //
+        ]);
+
+        $payTech = new PaytechService($apiKey, $apiSecret);
+
+        Log::debug('Objet PaytechService créé');
 
         $payTech->setQuery([
             'item_name' => $validatedData['item_name'],
@@ -72,42 +83,27 @@ class PaytechController extends Controller
         ->setRefCommand($transaction_id)
         ->setCurrency($validatedData['currency'])
         ->setNotificationUrl([
-            'ipn_url' => env('PAYTECH_IPN_URL'),
-            'success_url' => env('PAYTECH_SUCCESS_URL'),
-            'cancel_url' => env('PAYTECH_CANCEL_URL'),
+            'ipn_url' => 'https://votre-domaine.com/api/paytech/ipn',  
+            'success_url' => 'https://votre-domaine.com/paytech/success',
+            'cancel_url' => 'https://votre-domaine.com/paytech/cancel',
+        ]);
+
+        Log::debug('Configuration PayTech terminée', [
+            'query' => $payTech->query ?? 'Non disponible',
+            'refCommand' => $payTech->refCommand ?? 'Non disponible',
+            'currency' => $payTech->currency ?? 'Non disponible',
+            'notificationUrl' => $payTech->notificationUrl ?? 'Non disponible',
         ]);
 
         $response = $payTech->send();
 
+        Log::debug('Réponse de PayTech reçue', $response);
+
         if ($response['success'] === 1) {
             Log::info('Paiement initié avec succès', ['transaction_id' => $transaction_id]);
-
-            try {
-                // Stockage initial du paiement dans la base de données
-                $paiement = Paiement::create([
-                    'reference' => $transaction_id,
-                    'formation_id' => $formation->id,
-                    'user_id' => $user->id,
-                    'date_paiement' => now(),
-                    'montant' => $validatedData['item_price'],
-                    'mode_paiement' => 'wave',
-                    'validation' => false,
-                    'status_paiement' => 'en attente',
-                ]);
-
-                Log::info('Informations de paiement initiales stockées dans la base de données', [
-                    'transaction_id' => $transaction_id,
-                    'paiement_id' => $paiement->id
-                ]);
-            } catch (Exception $e) {
-                Log::error('Erreur lors de la création du paiement dans la base de données', [
-                    'transaction_id' => $transaction_id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
+            // Créez l'enregistrement de paiement dans la base de données ici
         } else {
-            Log::error('Échec de l\'initialisation du paiement', ['errors' => $response['errors']]);
+            Log::error('Échec de l\'initialisation du paiement', ['errors' => $response['errors'] ?? 'Erreur inconnue']);
         }
 
         return response()->json([
@@ -115,6 +111,10 @@ class PaytechController extends Controller
             'redirect_url' => $response['success'] === 1 ? $response['redirect_url'] : null,
             'errors' => $response['success'] === 1 ? null : $response['errors']
         ], $response['success'] === 1 ? 200 : 400);
+    }
+    private function isPaymentComplete($status)
+    {
+        return $status == 'sale_complete';
     }
     /**
      * Vérifie la signature Paytech pour sécuriser la notification.

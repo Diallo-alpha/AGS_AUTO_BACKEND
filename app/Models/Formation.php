@@ -32,8 +32,10 @@ class Formation extends Model
         return $this->hasMany(Progression::class);
     //
     }
-    public function user()
+    public function utilisateurs()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsToMany(User::class, 'utilisateur_formation')
+                    ->withTimestamps()
+                    ->withPivot('date_achat');
     }
 }

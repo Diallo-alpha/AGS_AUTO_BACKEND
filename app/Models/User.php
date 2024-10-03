@@ -58,7 +58,7 @@ class User extends Authenticatable implements JWTSubject
     public function notes() {
         return $this->hasMany(NoteFormation::class);
     }
-    //progression 
+    //progression
     public function progressions()
     {
         return $this->hasMany(Progression::class);
@@ -70,6 +70,13 @@ class User extends Authenticatable implements JWTSubject
 
     public function formations()
     {
-        return $this->hasMany(Formation::class);
+        return $this->belongsToMany(Formation::class, 'utilisateur_formation')
+                    ->withTimestamps()
+                    ->withPivot('date_achat');
+    }
+
+    public function acheterFormation(Formation $formation)
+    {
+        $this->formations()->attach($formation->id, ['date_achat' => now()]);
     }
 }
