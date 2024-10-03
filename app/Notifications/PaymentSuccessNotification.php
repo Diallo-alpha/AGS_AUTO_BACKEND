@@ -42,7 +42,7 @@ class PaymentSuccessNotification extends Notification
     {
         return (new MailMessage)
                     ->line('Votre paiement a été traité avec succès.')
-                    ->line('Formation: ' . $this->formation->nom)
+                    ->line('Formation: ' . $this->formation->nom_formation)
                     ->line('Montant: ' . $this->payment->montant)
                     ->action('Voir les détails', url('/https://admirable-macaron-cbfcb1.netlify.app/detail-formation/' . $this->formation->id))
                     ->line('Merci d\'utiliser notre plateforme!');
