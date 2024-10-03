@@ -8,7 +8,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     */ 
+     */
     public function up(): void
     {
         Schema::create('paiements', function (Blueprint $table) {
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->enum('status_paiement', ['payé', 'en attente', 'echec'])->default('en attente');
             $table->string('reference');
             $table->timestamps();
-        });
+        }); 
     }
 
     /**
