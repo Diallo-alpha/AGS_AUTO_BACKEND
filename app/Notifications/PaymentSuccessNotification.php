@@ -8,8 +8,9 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\Paiement;
 use App\Models\Formation;
+use Illuminate\Support\Facades\Log;
 
-class PaymentSuccessNotification extends Notification
+class PaymentSuccessNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -32,6 +33,16 @@ class PaymentSuccessNotification extends Notification
      */
     public function via(object $notifiable): array
     {
+        // Vérifier si le paiement est validé avant d'envoyer la notification
+        if (!$this->payment->validation || $this->payment->status_paiement !== 'payé') {
+            Log::error('Tentative d\'envoi d\'une notification pour un paiement non validé', [
+                'payment_id' => $this->payment->id,
+                'status' => $this->payment->status_paiement,
+                'validation' => $this->payment->validation
+            ]);
+            return []; // Ne pas envoyer de notification si le paiement n'est pas validé
+        }
+
         return ['mail', 'database'];
     }
 
@@ -41,10 +52,11 @@ class PaymentSuccessNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
+                    ->subject('Confirmation de paiement pour votre formation')
                     ->line('Votre paiement a été traité avec succès.')
                     ->line('Formation: ' . $this->formation->nom_formation)
                     ->line('Montant: ' . $this->payment->montant)
-                    ->action('Voir les détails', url('/https://admirable-macaron-cbfcb1.netlify.app/detail-formation/' . $this->formation->id))
+                    ->action('Voir les détails', url('https://admirable-macaron-cbfcb1.netlify.app/detail-formation/' . $this->formation->id))
                     ->line('Merci d\'utiliser notre plateforme!');
     }
 
@@ -60,5 +72,28 @@ class PaymentSuccessNotification extends Notification
             'formation_id' => $this->formation->id,
             'montant' => $this->payment->montant,
         ];
+    }
+
+    /**
+     * Determine which queues should be used for each notification channel.
+     *
+     * @return array
+     */
+    public function viaQueues()
+    {
+        return [
+            'mail' => 'emails',
+            'database' => 'default',
+        ];
+    }
+
+    /**
+     * Get the number of seconds before the job should timeout.
+     *
+     * @return int
+     */
+    public function retryUntil()
+    {
+        return now()->addMinutes(10);
     }
 }

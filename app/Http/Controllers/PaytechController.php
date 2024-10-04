@@ -153,81 +153,72 @@ class PaytechController extends Controller
     public function handleNotification(Request $request)
     {
         Log::info('Notification PayTech reçue', ['request_data' => $request->all()]);
-
         try {
             // Extraction et validation des données
             $formationId = $request->input('formationId');
-            $status = $request->input('status'); // On suppose que 'status' est 1 pour succès et 0 pour échec
+            $status = $request->input('status');
+            $transactionId = $request->input('transaction_id'); // Ajout de la récupération de l'ID de transaction
 
-            if (!$formationId || !isset($status)) {
+            if (!$formationId || !isset($status) || !$transactionId) {
                 Log::error('Données de notification incomplètes', [
                     'formationId' => $formationId,
-                    'status' => $status
+                    'status' => $status,
+                    'transactionId' => $transactionId
                 ]);
                 return response()->json(['error' => 'Données incomplètes'], 400);
             }
 
             Log::info('Données de notification validées', [
                 'formationId' => $formationId,
-                'status' => $status
+                'status' => $status,
+                'transactionId' => $transactionId
             ]);
 
             // Récupération de la formation
-            $formation = Formation::find($formationId);
+            $formation = Formation::findOrFail($formationId);
 
-            if (!$formation) {
-                Log::error('Formation non trouvée', ['formation_id' => $formationId]);
-                return response()->json(['error' => 'Formation non trouvée'], 404);
-            }
-
-            // Récupération du dernier paiement non validé pour cette formation
-            $paiement = Paiement::where('formation_id', $formationId)
-                                ->where('validation', false)
-                                ->orderBy('created_at', 'desc')
+            // Récupération du paiement correspondant à la transaction
+            $paiement = Paiement::where('reference', $transactionId)
+                                ->where('formation_id', $formationId)
                                 ->first();
 
             if (!$paiement) {
-                Log::error('Paiement non trouvé pour la formation', ['formation_id' => $formationId]);
+                Log::error('Paiement non trouvé pour la transaction', ['transaction_id' => $transactionId, 'formation_id' => $formationId]);
                 return response()->json(['error' => 'Paiement non trouvé'], 404);
             }
 
-            // Vérification du statut de paiement
-            if ($status) { // Si le paiement est réussi
-                // Mise à jour du paiement
-                $paiement->validation = true;
-                $paiement->status_paiement = 'payé';
-                $paiement->save();
+            // Vérification du statut du paiement
+            $isPaid = $status === 'success' || $status === true || $status === 1;
 
-                Log::info('Paiement mis à jour', ['paiement_id' => $paiement->id, 'status' => $paiement->status_paiement]);
+            // Mise à jour du paiement
+            $paiement->validation = $isPaid;
+            $paiement->status_paiement = $isPaid ? 'payé' : 'échoué';
+            $paiement->save();
 
-                // Mise à jour du rôle de l'utilisateur
-                $user = User::find($paiement->user_id);
-                $user->role = 'etudiant'; // Attribution du rôle d'étudiant
+            Log::info('Paiement mis à jour', ['paiement_id' => $paiement->id, 'status' => $paiement->status_paiement]);
+
+            $user = User::findOrFail($paiement->user_id);
+
+            // Mise à jour du rôle de l'utilisateur et envoi de l'e-mail uniquement si le paiement est réussi
+            if ($isPaid) {
+                $user->role = 'etudiant';
                 $user->formation_id = $formationId;
                 $user->save();
+
                 Log::info('Rôle de l\'utilisateur mis à jour', ['user_id' => $user->id, 'nouveau_role' => 'etudiant']);
 
-                // Envoi de la notification
+                // Envoi de la notification par e-mail (mise en file d'attente)
                 try {
-                    $user->notify(new PaymentSuccessNotification($paiement, $formation));
-                    Log::info('Notification de paiement envoyée', ['user_id' => $user->id]);
+                    $user->notify((new PaymentSuccessNotification($paiement, $formation))->delay(now()->addSeconds(30)));
+                    Log::info('Notification de paiement réussi mise en file d\'attente', ['user_id' => $user->id]);
                 } catch (\Exception $e) {
-                    Log::error('Erreur lors de l\'envoi de la notification', ['error' => $e->getMessage()]);
+                    Log::error('Erreur lors de la mise en file d\'attente de la notification de paiement réussi', ['error' => $e->getMessage()]);
                 }
-
-            } else { // Si le paiement a échoué
-                // Mise à jour du paiement en tant qu'échoué
-                $paiement->validation = false;
-                $paiement->status_paiement = 'échoué';
-                $paiement->save();
-
-                Log::info('Paiement échoué, aucune action supplémentaire pour l\'utilisateur', [
-                    'paiement_id' => $paiement->id
-                ]);
+            } else {
+                Log::info('Paiement échoué, aucune mise à jour du rôle utilisateur ni notification envoyée', ['user_id' => $user->id]);
             }
 
             return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
-
         } catch (\Exception $e) {
             Log::error('Erreur lors du traitement de la notification', [
                 'error' => $e->getMessage(),
