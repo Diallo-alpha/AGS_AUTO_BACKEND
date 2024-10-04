@@ -157,7 +157,7 @@ class PaytechController extends Controller
         try {
             // Extraction et validation des données
             $formationId = $request->input('formationId');
-            $status = $request->input('status');
+            $status = $request->input('status'); // On suppose que 'status' est 1 pour succès et 0 pour échec
 
             if (!$formationId || !isset($status)) {
                 Log::error('Données de notification incomplètes', [
@@ -191,17 +191,18 @@ class PaytechController extends Controller
                 return response()->json(['error' => 'Paiement non trouvé'], 404);
             }
 
-            // Mise à jour du paiement
-            $paiement->validation = $status;
-            $paiement->status_paiement = $status ? 'payé' : 'échoué';
-            $paiement->save();
+            // Vérification du statut de paiement
+            if ($status) { // Si le paiement est réussi
+                // Mise à jour du paiement
+                $paiement->validation = true;
+                $paiement->status_paiement = 'payé';
+                $paiement->save();
 
-            Log::info('Paiement mis à jour', ['paiement_id' => $paiement->id, 'status' => $paiement->status_paiement]);
+                Log::info('Paiement mis à jour', ['paiement_id' => $paiement->id, 'status' => $paiement->status_paiement]);
 
-            // Mise à jour du rôle de l'utilisateur si le paiement est réussi
-            if ($status) {
+                // Mise à jour du rôle de l'utilisateur
                 $user = User::find($paiement->user_id);
-                $user->role = 'etudiant';
+                $user->role = 'etudiant'; // Attribution du rôle d'étudiant
                 $user->formation_id = $formationId;
                 $user->save();
                 Log::info('Rôle de l\'utilisateur mis à jour', ['user_id' => $user->id, 'nouveau_role' => 'etudiant']);
@@ -213,6 +214,16 @@ class PaytechController extends Controller
                 } catch (\Exception $e) {
                     Log::error('Erreur lors de l\'envoi de la notification', ['error' => $e->getMessage()]);
                 }
+
+            } else { // Si le paiement a échoué
+                // Mise à jour du paiement en tant qu'échoué
+                $paiement->validation = false;
+                $paiement->status_paiement = 'échoué';
+                $paiement->save();
+
+                Log::info('Paiement échoué, aucune action supplémentaire pour l\'utilisateur', [
+                    'paiement_id' => $paiement->id
+                ]);
             }
 
             return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
@@ -225,6 +236,7 @@ class PaytechController extends Controller
             return response()->json(['error' => 'Erreur interne du serveur'], 500);
         }
     }
+
 
 
     /**
