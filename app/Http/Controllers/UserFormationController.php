@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreUserFormationRequest;
-use App\Http\Requests\UpdateUserFormationRequest;
-use App\Models\UserFormation;
 use App\Models\Formation;
 use Illuminate\Http\Request;
+use App\Models\UserFormation;
+use Illuminate\Support\Facades\Log;
+use App\Http\Requests\StoreUserFormationRequest;
+use App\Http\Requests\UpdateUserFormationRequest;
 
 class UserFormationController extends Controller
 {
@@ -68,8 +69,15 @@ class UserFormationController extends Controller
      */
     public function index(Request $request)
     {
+        // Ajout de logs pour le débogage
+        Log::info('Début de la méthode index');
+        Log::info('Utilisateur connecté:', ['user' => $request->user()]);
+        Log::info('Rôles de l\'utilisateur:', ['roles' => $request->user()->getRoleNames()]);
+
         $user = $request->user(); // Récupère l'utilisateur connecté
         $formations = $user->formations; // Récupère les formations associées à l'utilisateur
+
+        Log::info('Formations récupérées:', ['formations' => $formations]);
 
         return response()->json($formations);
     }

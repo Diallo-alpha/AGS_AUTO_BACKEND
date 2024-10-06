@@ -1,10 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Ressource;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StoreRessourceRequest;
 use App\Http\Requests\UpdateRessourceRequest;
-use App\Models\Ressource;
-use Illuminate\Support\Facades\Storage;
 
 class RessourceController extends Controller
 {
@@ -35,32 +36,44 @@ class RessourceController extends Controller
      */
     public function store(StoreRessourceRequest $request)
     {
-        // Ajouter une ressource, seulement pour les admins
-        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
-            return response()->json(['message' => 'Accès refusé'], 403);
-        }
+        Log::info('Données reçues:', $request->all());
 
-        $validated = $request->validated();
+        try {
+            $validated = $request->validated();
+            Log::info('Données validées:', $validated);
 
-        if ($request->hasFile('documents')) {
-            try {
-                // Stocker le fichier et obtenir le chemin
-                $path = $request->file('documents')->store('ressources_videos', 'public');
-                $validated['documents'] = $path;
-            } catch (\Exception $e) {
-                return response()->json(['message' => 'Erreur lors du téléchargement du fichier', 'error' => $e->getMessage()], 500);
+            if (!isset($validated['titre']) || !isset($validated['video_id'])) {
+                throw new \Exception('Les champs titre et video_id sont requis.');
             }
+
+            $ressource = new Ressource();
+            $ressource->titre = $validated['titre'];
+            $ressource->video_id = $validated['video_id'];
+
+            if ($request->hasFile('documents')) {
+                $path = $request->file('documents')->store('ressources_videos', 'public');
+                $ressource->documents = $path;
+            } else {
+                throw new \Exception('Le fichier documents est requis.');
+            }
+
+            $ressource->save();
+            Log::info('Ressource sauvegardée:', $ressource->toArray());
+
+            return response()->json([
+               'message' => 'Ressource ajoutée avec succès',
+               'ressource' => $ressource
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la sauvegarde:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de l\'ajout de la ressource',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Créer une nouvelle ressource
-        $ressource = Ressource::create($validated);
-
-        \Log::info('Fichier reçu : ', ['file' => $request->file('fichier')]);
-
-        return response()->json([
-           'message' => 'Ressource ajoutée avec succès',
-           'ressource' => $ressource
-        ], 201);
     }
 
     /**

@@ -9,7 +9,7 @@ class PaytechService
     const URL = "https://paytech.sn";
     const PAYMENT_REQUEST_PATH = '/api/payment/request-payment';
     const PAYMENT_REDIRECT_PATH = '/payment/checkout/';
-    const PAYMENT_SUCCESS_PATH = '/api/payment/success-payments'; // Assurez-vous que ce chemin est correct
+    const PAYMENT_SUCCESS_PATH = '/api/payment/success-payments';
 
 
     private $apiKey;

@@ -1,23 +1,25 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
-use App\Http\Controllers\VideoController;
-use App\Http\Controllers\ArticleController;
-use App\Http\Controllers\PaytechController;
-use App\Http\Controllers\ProduitController;
-use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\CommandeController;
-use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\CategorieController;
-use App\Http\Controllers\RessourceController;
-use App\Http\Controllers\FormationsController;
-use App\Http\Controllers\PartenaireController;
+use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\CommentaireController;
-use App\Http\Controllers\ProgressionController;
+use App\Http\Controllers\FormationsController;
 use App\Http\Controllers\NoteFormationController;
+use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\PartenaireController;
+use App\Http\Controllers\PaytechController;
 use App\Http\Controllers\PhotoFormationController;
+use App\Http\Controllers\ProduitController;
+use App\Http\Controllers\ProgressionController;
+use App\Http\Controllers\RessourceController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\UserFormationController;
+use App\Http\Controllers\VideoController;
+use Illuminate\Support\Facades\Route;
+
 
 // Routes publiques
 Route::group([], function () {
@@ -50,12 +52,11 @@ Route::group([], function () {
     Route::get('/articles/{article}', [ArticleController::class, 'show']);
 
     // Paiement Paytech
-    Route::post('/paytech-ipn', [PaytechController::class, 'handleIPN'])->name('paytech.ipn');
-    Route::get('/paiements/cancel/{id}', [PaytechController::class, 'paymentCancel'])->name('payment.cancel');
     Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');
-    Route::post('paytech/notification', [PaytechController::class, 'handleNotification'])->name('paytech.notification');
-    Route::get('paytech/success', [PaytechController::class, 'paymentSuccess'])->name('paytech.success');
-    Route::get('paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
+    Route::post('/paytech/notification', [PaytechController::class, 'handleNotification'])->name('paytech.notification');
+    Route::get('/paytech/success', [PaytechController::class, 'paymentSuccess'])->name('paytech.success');
+    Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
+    Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
 });
 
 // Routes authentifiées
@@ -127,7 +128,9 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
 });
 
 // Routes étudiant
-Route::middleware(['auth', 'role:etudiant'])->group(function() {
+Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
+    //afficher formation d'un utilsateur
+    Route::get('formation/acheter', [UserFormationController::class, 'index']);
     // Progressions
     Route::get('/progressions/{formationId}', [ProgressionController::class, 'show'])->name('progressions.show');
     Route::post('/progressions', [ProgressionController::class, 'store'])->name('progressions.store');
@@ -139,4 +142,9 @@ Route::middleware(['auth', 'role:etudiant'])->group(function() {
 
     // Paiements
     Route::get('/paiements', [PaytechController::class, 'index'])->name('paiements.index');
+    //
+    Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
+    Route::apiResource('ressources', RessourceController::class);
+
+
 });
