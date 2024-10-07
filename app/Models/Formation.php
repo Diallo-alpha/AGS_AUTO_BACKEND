@@ -34,7 +34,7 @@ class Formation extends Model
     }
     public function utilisateurs()
     {
-        return $this->belongsToMany(User::class, 'utilisateur_formation')
+        return $this->belongsToMany(User::class, 'user_formations')
                     ->withTimestamps()
                     ->withPivot('date_achat');
     }

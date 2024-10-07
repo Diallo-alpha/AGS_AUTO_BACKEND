@@ -70,7 +70,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function formations()
     {
-        return $this->belongsToMany(Formation::class, 'utilisateur_formation')
+        return $this->belongsToMany(Formation::class, 'user_formations')
                     ->withTimestamps()
                     ->withPivot('date_achat');
     }

@@ -144,6 +144,7 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     Route::get('/paiements', [PaytechController::class, 'index'])->name('paiements.index');
     //
     Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
+    Route::apiResource('videos', VideoController::class);
     Route::apiResource('ressources', RessourceController::class);
 
 

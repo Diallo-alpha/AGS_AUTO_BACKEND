@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserFormation extends Model
 {
     use HasFactory;
-    
+    protected $table = 'user_formations';
     protected $guarded = [];
 
 }
