@@ -40,7 +40,6 @@ Route::group([], function () {
     Route::get('/services/{service}', [ServiceController::class, 'show']);
 
     // Vidéos
-    Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
 
     // Commentaires
     Route::get('/commentaires', [CommentaireController::class, 'index']);
@@ -129,6 +128,11 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
 
 // Routes étudiant
 Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
+    //afficher les vidéos d'une formation
+    Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
+    Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
+
+
     //afficher formation d'un utilsateur
     Route::get('formation/acheter', [UserFormationController::class, 'index']);
     // Progressions
@@ -143,9 +147,10 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     // Paiements
     Route::get('/paiements', [PaytechController::class, 'index'])->name('paiements.index');
     //
-    Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
-    Route::apiResource('videos', VideoController::class);
+    // Route::apiResource('videos', VideoController::class);
     Route::apiResource('ressources', RessourceController::class);
+    //
+    Route::get('videos/{videoId}/resources', [RessourceController::class, 'getResourcesByVideoId']);
 
 
 });

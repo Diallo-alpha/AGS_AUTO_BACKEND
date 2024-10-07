@@ -71,39 +71,44 @@ class FormationsController extends Controller
     }
 
     public function update(UpdateFormationsRequest $request, Formation $formation)
-    {
-        try {
-            if (!Auth::check() || !Auth::user()->hasRole('admin')) {
-                Log::warning('Tentative d\'accès non autorisé à la mise à jour de formation');
-                return response()->json(['message' => 'Accès refusé'], 403);
-            }
-
-            $validatedData = $request->validated();
-            Log::info('Données validées pour la mise à jour:', $validatedData);
-
-            if ($request->hasFile('image')) {
-                if ($formation->image) {
-                    Storage::disk('public')->delete($formation->image);
-                    Log::info('Ancienne image supprimée: ' . $formation->image);
-                }
-
-                $path = $request->file('image')->store('formations_image', 'public');
-                $validatedData['image'] = $path;
-                Log::info('Nouvelle image stockée: ' . $path);
-            }
-
-            $formation->update($validatedData);
-            Log::info('Formation mise à jour avec succès. ID: ' . $formation->id);
-
-            $formation->image = $formation->image ? asset('storage/' . $formation->image) : null;
-
-            return response()->json(['message' => 'Formation mise à jour avec succès', 'formation' => $formation]);
-        } catch (Exception $e) {
-            Log::error('Erreur lors de la mise à jour de la formation: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
-            return response()->json(['message' => 'Erreur lors de la mise à jour de la formation', 'error' => $e->getMessage()], 500);
+{
+    try {
+        if (!Auth::check() || !Auth::user()->hasRole('admin')) {
+            Log::warning('Tentative d\'accès non autorisé à la mise à jour de formation');
+            return response()->json(['message' => 'Accès refusé'], 403);
         }
+
+        Log::info('Données reçues pour la mise à jour:', $request->all());
+
+        $validatedData = $request->validated();
+        Log::info('Données validées pour la mise à jour:', $validatedData);
+
+        if ($request->hasFile('image')) {
+            Log::info('Fichier image reçu');
+            if ($formation->image) {
+                Storage::disk('public')->delete($formation->image);
+                Log::info('Ancienne image supprimée: ' . $formation->image);
+            }
+
+            $path = $request->file('image')->store('formations_image', 'public');
+            $validatedData['image'] = $path;
+            Log::info('Nouvelle image stockée: ' . $path);
+        } else {
+            Log::info('Aucun nouveau fichier image reçu');
+        }
+
+        $formation->update($validatedData);
+        Log::info('Formation mise à jour avec succès. ID: ' . $formation->id);
+
+        $formation->image = $formation->image ? asset('storage/' . $formation->image) : null;
+
+        return response()->json(['message' => 'Formation mise à jour avec succès', 'formation' => $formation]);
+    } catch (Exception $e) {
+        Log::error('Erreur lors de la mise à jour de la formation: ' . $e->getMessage());
+        Log::error('Trace: ' . $e->getTraceAsString());
+        return response()->json(['message' => 'Erreur lors de la mise à jour de la formation', 'error' => $e->getMessage()], 500);
     }
+}
 
     public function destroy(Formation $formation)
     {

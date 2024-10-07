@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Video;
 use App\Models\Ressource;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -126,6 +127,35 @@ class RessourceController extends Controller
             'message' => 'Ressource modifiée avec succès',
             'ressource' => $ressource
         ]);
+    }
+
+    //afficher les ressource d'une vidéos
+    public function getResourcesByVideoId($videoId)
+    {
+        try {
+            // Vérifier si la vidéo existe
+            $video = Video::findOrFail($videoId);
+
+            // Récupérer toutes les ressources associées à cette vidéo
+            $resources = Ressource::where('video_id', $videoId)->get();
+
+            return response()->json([
+                'message' => 'Ressources récupérées avec succès',
+                'video' => $video->titre, // Ajout du titre de la vidéo pour plus de contexte
+                'resources' => $resources
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des ressources:', [
+                'video_id' => $videoId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des ressources',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
