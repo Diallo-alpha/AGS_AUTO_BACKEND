@@ -182,8 +182,18 @@ class PaytechController extends Controller
         return $methodMap[$payTechMethod] ?? 'autre';
     }
 
-    public function handleSuccessfulPayment($paiement)
+    public function handleSuccessfulPayment(Request $request, $paiement = null)
     {
+        if (!$paiement) {
+            $transactionId = $request->input('ref_payment');
+            $paiement = Paiement::where('reference', $transactionId)->first();
+
+            if (!$paiement) {
+                Log::error('Paiement non trouvé pour la référence', ['ref_payment' => $transactionId]);
+                return redirect()->route('home')->with('error', 'Paiement non trouvé.');
+            }
+        }
+
         Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
 
         $user = User::find($paiement->user_id);
@@ -197,8 +207,12 @@ class PaytechController extends Controller
             $user->notify(new PaymentSuccessNotification($paiement, $formation));
 
             Log::info('Utilisateur mis à jour et notifié', ['user_id' => $user->id, 'formation_id' => $formation->id]);
+
+            return redirect()->route('payment.success', ['formation_id' => $formation->id])
+                             ->with('success', 'Paiement traité avec succès.');
         } else {
             Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
+            return redirect()->route('home')->with('error', 'Une erreur est survenue lors du traitement du paiement.');
         }
     }
     public function paymentCancel(Request $request, $id)
@@ -233,16 +247,18 @@ class PaytechController extends Controller
 
         try {
             $user = Auth::user();
-            $transactionId = $request->input('ref_payment');
-            $paiement = Paiement::where('reference', $transactionId)->firstOrFail();
+            $formationId = $request->input('formation_id');
 
-            if ($paiement->status_paiement !== 'payé') {
-                $paiement->status_paiement = 'payé';
-                $paiement->save();
-                $this->handleSuccessfulPayment($paiement);
+            if (!$user || !$formationId) {
+                throw new Exception('Utilisateur non authentifié ou formation non spécifiée.');
             }
 
-            $formation = Formation::find($paiement->formation_id);
+            $formation = Formation::findOrFail($formationId);
+            $paiement = Paiement::where('user_id', $user->id)
+                                ->where('formation_id', $formationId)
+                                ->where('status_paiement', 'payé')
+                                ->latest()
+                                ->firstOrFail();
 
             return view('payments.success', compact('user', 'formation', 'paiement'));
         } catch (\Exception $e) {
@@ -250,7 +266,7 @@ class PaytechController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return back()->withErrors(['error' => 'Erreur lors du traitement de la demande']);
+            return redirect()->route('home')->with('error', 'Une erreur est survenue lors de l\'affichage de la page de succès.');
         }
     }
 }
