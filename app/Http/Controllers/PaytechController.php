@@ -117,23 +117,14 @@ class PaytechController extends Controller
         Log::info('Notification PayTech reçue', ['request_data' => $request->all()]);
 
         $type_event = $request->input('type_event');
-        $custom_field = json_decode($request->input('custom_field'), true);
         $ref_command = $request->input('ref_command');
-        $item_name = $request->input('item_name');
         $item_price = $request->input('item_price');
-        $currency = $request->input('currency');
-        $command_name = $request->input('command_name');
-        $env = $request->input('env');
-        $token = $request->input('token');
-        $api_key_sha256 = $request->input('api_key_sha256');
-        $api_secret_sha256 = $request->input('api_secret_sha256');
-        $client_phone = $request->input('client_phone');
         $payment_method = $request->input('payment_method');
 
         $my_api_key = env('PAYTECH_API_KEY', '3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
         $my_api_secret = env('PAYTECH_API_SECRET', '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
 
-        if (hash('sha256', $my_api_secret) === $api_secret_sha256 && hash('sha256', $my_api_key) === $api_key_sha256) {
+        if (hash('sha256', $my_api_secret) === $request->input('api_secret_sha256') && hash('sha256', $my_api_key) === $request->input('api_key_sha256')) {
             Log::info('Notification validée comme provenant de PayTech');
 
             try {
@@ -191,7 +182,7 @@ class PaytechController extends Controller
         return $methodMap[$payTechMethod] ?? 'autre';
     }
 
-    private function handleSuccessfulPayment($paiement)
+    protected function handleSuccessfulPayment($paiement)
     {
         Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
 
