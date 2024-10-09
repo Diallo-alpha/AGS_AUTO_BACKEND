@@ -15,6 +15,7 @@ use Exception;
 class PaytechController extends Controller
 {
     protected $payTechService;
+    private const SUCCESS_REDIRECT_URL = 'https://admirable-macaron-cbfcb1.netlify.app';
 
     public function __construct(PaytechService $payTechService)
     {
@@ -181,7 +182,6 @@ class PaytechController extends Controller
 
         return $methodMap[$payTechMethod] ?? 'autre';
     }
-
     public function handleSuccessfulPayment(Request $request, $paiement = null)
     {
         if (!$paiement) {
@@ -190,7 +190,7 @@ class PaytechController extends Controller
 
             if (!$paiement) {
                 Log::error('Paiement non trouvé pour la référence', ['ref_payment' => $transactionId]);
-                return redirect()->route('home')->with('error', 'Paiement non trouvé.');
+                return redirect(self::SUCCESS_REDIRECT_URL)->with('error', 'Paiement non trouvé');
             }
         }
 
@@ -212,7 +212,7 @@ class PaytechController extends Controller
                              ->with('success', 'Paiement traité avec succès.');
         } else {
             Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
-            return redirect()->route('home')->with('error', 'Une erreur est survenue lors du traitement du paiement.');
+            return redirect(self::SUCCESS_REDIRECT_URL)->with('error', 'Une erreur est survenue lors du traitement du paiement.');
         }
     }
     public function paymentCancel(Request $request, $id)
