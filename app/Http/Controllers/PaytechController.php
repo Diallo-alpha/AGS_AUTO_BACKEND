@@ -130,8 +130,8 @@ class PaytechController extends Controller
         $client_phone = $request->input('client_phone');
         $payment_method = $request->input('payment_method');
 
-        $my_api_key = env('PAYTECH_API_KEY');
-        $my_api_secret = env('PAYTECH_API_SECRET');
+        $my_api_key = env('PAYTECH_API_KEY', '3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
+        $my_api_secret = env('PAYTECH_API_SECRET', '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
 
         if (hash('sha256', $my_api_secret) === $api_secret_sha256 && hash('sha256', $my_api_key) === $api_key_sha256) {
             Log::info('Notification validée comme provenant de PayTech');
