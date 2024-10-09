@@ -182,18 +182,8 @@ class PaytechController extends Controller
 
         return $methodMap[$payTechMethod] ?? 'autre';
     }
-    public function handleSuccessfulPayment(Request $request, $paiement = null)
+    public function handleSuccessfulPayment(Paiement $paiement)
     {
-        if (!$paiement) {
-            $transactionId = $request->input('ref_payment');
-            $paiement = Paiement::where('reference', $transactionId)->first();
-
-            if (!$paiement) {
-                Log::error('Paiement non trouvé pour la référence', ['ref_payment' => $transactionId]);
-                return redirect(self::SUCCESS_REDIRECT_URL)->with('error', 'Paiement non trouvé');
-            }
-        }
-
         Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
 
         $user = User::find($paiement->user_id);
@@ -207,12 +197,8 @@ class PaytechController extends Controller
             $user->notify(new PaymentSuccessNotification($paiement, $formation));
 
             Log::info('Utilisateur mis à jour et notifié', ['user_id' => $user->id, 'formation_id' => $formation->id]);
-
-            return redirect()->route('payment.success', ['formation_id' => $formation->id])
-                             ->with('success', 'Paiement traité avec succès.');
         } else {
             Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
-            return redirect(self::SUCCESS_REDIRECT_URL)->with('error', 'Une erreur est survenue lors du traitement du paiement.');
         }
     }
     public function paymentCancel(Request $request, $id)
@@ -224,7 +210,6 @@ class PaytechController extends Controller
 
         return redirect()->route('home')->with('error', 'Le paiement a été annulé.');
     }
-
     public function verifyPayment($transactionId)
     {
         Log::info('Verifying payment', ['transaction_id' => $transactionId]);
