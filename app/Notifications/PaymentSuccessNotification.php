@@ -6,8 +6,9 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 
-class PaymentSuccessNotification extends Notification
+class PaymentSuccessNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,11 +28,30 @@ class PaymentSuccessNotification extends Notification
 
     public function toMail($notifiable)
     {
-        return (new MailMessage)
-                    ->line('Votre paiement a été effectué avec succès.')
-                    ->line('Formation : ' . $this->formation->name)
-                    ->line('Montant payé : ' . $this->paiement->montant)
-                    ->action('Voir les détails', url('/formations/' . $this->formation->id))
-                    ->line('Merci d\'avoir choisi notre plateforme!');
+        try {
+            return (new MailMessage)
+                        ->subject('Paiement réussi pour ' . $this->formation->nom_formation)
+                        ->line('Votre paiement a été effectué avec succès.')
+                        ->line('Formation : ' . $this->formation->nom_formation)
+                        ->line('Montant payé : ' . $this->paiement->montant . ' ' . $this->paiement->currency)
+                        ->action('Voir les détails', url('/https://admirable-macaron-cbfcb1.netlify.app/detail-formation/' . $this->formation->id))
+                        ->line('Merci d\'avoir choisi notre plateforme!');
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la création du message de notification', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function toArray($notifiable)
+    {
+        return [
+            'paiement_id' => $this->paiement->id,
+            'formation_id' => $this->formation->id,
+            'montant' => $this->paiement->montant,
+            'currency' => $this->paiement->currency,
+        ];
     }
 }
