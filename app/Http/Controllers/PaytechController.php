@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Paiement;
 use App\Models\Formation;
-use Illuminate\Http\Request;
-use App\Services\PaytechService;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Paiement;
+use App\Models\User;
 use App\Notifications\PaymentSuccessNotification;
+use App\Services\PaytechService;
 use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaytechController extends Controller
 {
@@ -190,13 +191,28 @@ class PaytechController extends Controller
         $formation = Formation::find($paiement->formation_id);
 
         if ($user && $formation) {
-            $user->formation_id = $formation->id;
-            $user->role = 'etudiant';
-            $user->save();
+            try {
+                // Ajout de l'utilisateur à la formation
+                DB::table('user_formations')->updateOrInsert(
+                    ['user_id' => $user->id, 'formation_id' => $formation->id],
+                    ['created_at' => now(), 'updated_at' => now()]
+                );
 
-            $user->notify(new PaymentSuccessNotification($paiement, $formation));
+                $user->role = 'etudiant';
+                $user->save();
 
-            Log::info('Utilisateur mis à jour et notifié', ['user_id' => $user->id, 'formation_id' => $formation->id]);
+                $user->notify(new PaymentSuccessNotification($paiement, $formation));
+
+                Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
+                    'user_id' => $user->id,
+                    'formation_id' => $formation->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la mise à jour de l\'utilisateur ou de l\'envoi de la notification', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
         } else {
             Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
         }
@@ -225,20 +241,21 @@ class PaytechController extends Controller
             'date' => $payment->date_paiement,
         ]);
     }
-
     public function paymentSuccess(Request $request)
     {
         Log::info('Affichage de la page de succès de paiement', ['request_data' => $request->all()]);
 
         try {
             $user = Auth::user();
-            $formationId = $request->input('formation_id');
-            $transactionId = $request->input('ref_payment');
-
             if (!$user) {
                 Log::warning('Tentative d\'accès à la page de succès sans authentification');
                 return redirect()->route('login')->with('error', 'Veuillez vous connecter pour voir les détails de votre paiement.');
             }
+
+            Log::info('Utilisateur authentifié', ['user_id' => $user->id, 'roles' => $user->getRoleNames()]);
+
+            $formationId = $request->input('formation_id');
+            $transactionId = $request->input('ref_payment');
 
             if (!$formationId && !$transactionId) {
                 Log::error('Formation ID et Transaction ID manquants dans la requête de succès');
@@ -254,9 +271,16 @@ class PaytechController extends Controller
                                 })
                                 ->where('status_paiement', 'payé')
                                 ->latest()
-                                ->firstOrFail();
+                                ->first();
+
+            if (!$paiement) {
+                Log::warning('Paiement non trouvé pour l\'utilisateur', ['user_id' => $user->id, 'formation_id' => $formationId, 'transaction_id' => $transactionId]);
+                return redirect()->route('home')->with('error', 'Détails du paiement non trouvés.');
+            }
 
             $formation = Formation::findOrFail($paiement->formation_id);
+
+            Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formation->id]);
 
             return view('payments.success', compact('user', 'formation', 'paiement'));
         } catch (\Exception $e) {
