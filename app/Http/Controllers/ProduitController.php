@@ -17,9 +17,13 @@ class ProduitController extends Controller
      */
     public function index(): JsonResponse
     {
-        // Ajoute la pagination
-        $produits = Produit::paginate(10); // Par exemple, 10 produits par page
 
+        // Ajoute la pagination
+        $produits = Produit::paginate(10);
+        $produits->getCollection()->transform(function ($produit) {
+            $produit->image = $produit->image ? asset('storage/' . $produit->image) : null;
+            return $produit;
+        });
         return response()->json($produits, 200);
     }
 
@@ -45,6 +49,9 @@ class ProduitController extends Controller
 
         // Crée le produit
         $produit = Produit::create($validated);
+
+        // Ajoutez l'URL complète de l'image
+        $produit->image = $produit->image ? asset('storage/' . $produit->image) : null;
 
         return response()->json($produit, 201); // Retourne le produit créé
     }
@@ -101,6 +108,8 @@ class ProduitController extends Controller
         // Mettre à jour le produit
         $produit->update($validated);
 
+        $produit->image = $produit->image ? asset('storage/' . $produit->image) : null;
+
         return response()->json($produit, 200);
     }
 
@@ -125,5 +134,29 @@ class ProduitController extends Controller
         $produit->delete();
 
         return response()->json(['message' => 'Produit supprimé avec succès'], 200);
+    }
+
+    //recuperer les d'une categoris
+
+       /**
+     * Récupère les produits d'une catégorie spécifique.
+     *
+     * @param int $categoriId L'ID de la catégorie
+     * @return JsonResponse
+     */
+    public function getProductsByCategory(int $categoriId): JsonResponse
+    {
+        $produits = Produit::where('categorie_id', $categoriId)->paginate(10);
+
+        if ($produits->isEmpty()) {
+            return response()->json(['message' => 'Aucun produit trouvé pour cette catégorie'], 404);
+        }
+
+        $produits->getCollection()->transform(function ($produit) {
+            $produit->image = $produit->image ? asset('storage/' . $produit->image) : null;
+            return $produit;
+        });
+
+        return response()->json($produits, 200);
     }
 }

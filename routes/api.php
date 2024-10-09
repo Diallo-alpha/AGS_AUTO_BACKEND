@@ -39,7 +39,11 @@ Route::group([], function () {
     Route::get('/services', [ServiceController::class, 'index']);
     Route::get('/services/{service}', [ServiceController::class, 'show']);
 
-    // Vidéos
+    // Categories
+    Route::get('categories', [CategorieController::class, 'index']);
+    Route::get('categories/{id}', [CategorieController::class, 'show']);
+
+
 
     // Commentaires
     Route::get('/commentaires', [CommentaireController::class, 'index']);
@@ -53,9 +57,12 @@ Route::group([], function () {
     // Paiement Paytech
     Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');
     Route::post('/paytech/notification', [PaytechController::class, 'handleNotification'])->name('paytech.notification');
-    Route::get('/paytech/success', [PaytechController::class, 'paymentSuccess'])->name('paytech.success');
+    Route::get('/paytech/success', [PaytechController::class, 'handleSuccessfulPayment'])->name('payment.success');
     Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
+
+    //afficher les produits
+    Route::get('produit/categorie/{id}', [ProduitController::class, 'getProductsByCategory'])->name('produit.categorie');
 });
 
 // Routes authentifiées
@@ -98,10 +105,17 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
     Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
 
     // Catégories
-    Route::apiResource('categories', CategorieController::class);
+    Route::post('categories', [CategorieController::class, 'store']);
+    Route::put('categories/{id}', [CategorieController::class, 'update']);
+    Route::delete('categories/{id}', [CategorieController::class, 'destroy']);
 
     // Produits
-    Route::apiResource('produits', ProduitController::class);
+
+    Route::get('produits',[ProduitController::class, 'index']);
+    Route::post('produits', [ProduitController::class, 'store']);
+    Route::get('produits/{id}', [ProduitController::class, 'show']);
+    Route::post('produits/{id}', [ProduitController::class, 'update']);
+    Route::get('delete{id}', [ProduitController::class, 'destroy']);
 
     // Articles
     Route::post('/articles', [ArticleController::class, 'store']);

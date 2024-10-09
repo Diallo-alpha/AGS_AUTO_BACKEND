@@ -29,6 +29,11 @@ class PaytechService
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
         $this->client = new Client();
+        $this->notificationUrl = [
+            'ipn_url' => env('PAYTECH_IPN_URL'),
+            'success_url' => env('PAYTECH_SUCCESS_URL'),
+            'cancel_url' => env('PAYTECH_CANCEL_URL'),
+        ];
     }
 
     public function getSuccessfulPayments()
