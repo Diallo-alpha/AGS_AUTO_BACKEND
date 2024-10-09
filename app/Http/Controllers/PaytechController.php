@@ -182,7 +182,7 @@ class PaytechController extends Controller
         return $methodMap[$payTechMethod] ?? 'autre';
     }
 
-    protected function handleSuccessfulPayment($paiement)
+    public function handleSuccessfulPayment($paiement)
     {
         Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
 
@@ -201,7 +201,6 @@ class PaytechController extends Controller
             Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
         }
     }
-
     public function paymentCancel(Request $request, $id)
     {
         Log::info('Payment cancelled', ['payment_id' => $id]);
@@ -234,9 +233,18 @@ class PaytechController extends Controller
 
         try {
             $user = Auth::user();
-            $formation = Formation::find($request->input('formation_id'));
+            $transactionId = $request->input('ref_payment');
+            $paiement = Paiement::where('reference', $transactionId)->firstOrFail();
 
-            return view('payments.success', compact('user', 'formation'));
+            if ($paiement->status_paiement !== 'payé') {
+                $paiement->status_paiement = 'payé';
+                $paiement->save();
+                $this->handleSuccessfulPayment($paiement);
+            }
+
+            $formation = Formation::find($paiement->formation_id);
+
+            return view('payments.success', compact('user', 'formation', 'paiement'));
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'affichage de la page de succès', [
                 'error' => $e->getMessage(),
