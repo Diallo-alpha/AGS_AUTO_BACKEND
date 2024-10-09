@@ -233,17 +233,30 @@ class PaytechController extends Controller
         try {
             $user = Auth::user();
             $formationId = $request->input('formation_id');
+            $transactionId = $request->input('ref_payment');
 
-            if (!$user || !$formationId) {
-                throw new Exception('Utilisateur non authentifié ou formation non spécifiée.');
+            if (!$user) {
+                Log::warning('Tentative d\'accès à la page de succès sans authentification');
+                return redirect()->route('login')->with('error', 'Veuillez vous connecter pour voir les détails de votre paiement.');
             }
 
-            $formation = Formation::findOrFail($formationId);
+            if (!$formationId && !$transactionId) {
+                Log::error('Formation ID et Transaction ID manquants dans la requête de succès');
+                return redirect()->route('home')->with('error', 'Informations de paiement manquantes.');
+            }
+
             $paiement = Paiement::where('user_id', $user->id)
-                                ->where('formation_id', $formationId)
+                                ->when($formationId, function ($query) use ($formationId) {
+                                    return $query->where('formation_id', $formationId);
+                                })
+                                ->when($transactionId, function ($query) use ($transactionId) {
+                                    return $query->where('reference', $transactionId);
+                                })
                                 ->where('status_paiement', 'payé')
                                 ->latest()
                                 ->firstOrFail();
+
+            $formation = Formation::findOrFail($paiement->formation_id);
 
             return view('payments.success', compact('user', 'formation', 'paiement'));
         } catch (\Exception $e) {
