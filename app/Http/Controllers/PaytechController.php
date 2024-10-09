@@ -111,126 +111,62 @@ class PaytechController extends Controller
             'errors' => $response['success'] === 1 ? null : $response['errors']
         ], $response['success'] === 1 ? 200 : 400);
     }
-    private function verifyPaytechSignature(Request $request)
-    {
-        Log::info('Vérification de la signature Paytech', ['request_headers' => $request->headers->all()]);
-
-        $receivedSignature = $request->header('X-Paytech-Signature');
-        if (!$receivedSignature) {
-            Log::warning('Signature Paytech manquante dans la requête');
-            return false;
-        }
-
-        $payload = $request->getContent();
-        $secretKey = env('0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
-        $expectedSignature = hash_hmac('sha256', $payload, $secretKey);
-
-        if ($receivedSignature !== $expectedSignature) {
-            Log::warning('Signature Paytech invalide', [
-                'received' => $receivedSignature,
-                'expected' => $expectedSignature
-            ]);
-            return false;
-        }
-
-        Log::info('Signature Paytech valide');
-        return true;
-    }
 
     public function handleNotification(Request $request)
-{
-    Log::info('Notification PayTech reçue', ['request_data' => $request->all()]);
+    {
+        Log::info('Notification PayTech reçue', ['request_data' => $request->all()]);
 
-    if (!$this->verifyPaytechSignature($request)) {
-        Log::error('Signature PayTech invalide');
-        return response()->json(['error' => 'Signature invalide'], 400);
-    }
+        $type_event = $request->input('type_event');
+        $custom_field = json_decode($request->input('custom_field'), true);
+        $ref_command = $request->input('ref_command');
+        $item_name = $request->input('item_name');
+        $item_price = $request->input('item_price');
+        $currency = $request->input('currency');
+        $command_name = $request->input('command_name');
+        $env = $request->input('env');
+        $token = $request->input('token');
+        $api_key_sha256 = $request->input('api_key_sha256');
+        $api_secret_sha256 = $request->input('api_secret_sha256');
+        $client_phone = $request->input('client_phone');
+        $payment_method = $request->input('payment_method');
 
-    // Extraction et validation des données
-    $paymentId = $request->input('ref_command');
-    $paymentStatus = $request->input('type_event');
-    $amount = $request->input('amount');
-    $paymentMethod = $request->input('payment_method');
-    $formationId = $request->input('formationId');
-    $status = $request->input('status'); // On suppose que 'status' est 1 pour succès et 0 pour échec
+        $my_api_key = env('PAYTECH_API_KEY');
+        $my_api_secret = env('PAYTECH_API_SECRET');
 
-    if (!$paymentId || !isset($paymentStatus) || !$formationId || !isset($status)) {
-        Log::error('Données de notification incomplètes', [
-            'paymentId' => $paymentId,
-            'status' => $paymentStatus,
-            'formationId' => $formationId,
-            'status' => $status
-        ]);
-        return response()->json(['error' => 'Données incomplètes'], 400);
-    }
+        if (hash('sha256', $my_api_secret) === $api_secret_sha256 && hash('sha256', $my_api_key) === $api_key_sha256) {
+            Log::info('Notification validée comme provenant de PayTech');
 
-    Log::info('Détails de la notification', [
-        'paymentId' => $paymentId,
-        'status' => $paymentStatus,
-        'amount' => $amount,
-        'payment_method' => $paymentMethod,
-        'formationId' => $formationId,
-        'status' => $status
-    ]);
+            try {
+                $paiement = Paiement::where('reference', $ref_command)->firstOrFail();
+                $paiement->status_paiement = $this->getPaymentStatus($type_event);
+                $paiement->montant = $item_price;
+                $paiement->mode_paiement = $this->mapPaymentMethod($payment_method);
+                $paiement->validation = $paiement->status_paiement === 'payé';
+                $paiement->save();
 
-    $refParts = explode('_', $paymentId);
-    $userId = $refParts[1] ?? null;
+                Log::info('Paiement mis à jour', ['payment_id' => $paiement->id, 'status' => $paiement->status_paiement]);
 
-    $user = User::find($userId);
-    $formation = Formation::find($formationId);
+                if ($paiement->status_paiement === 'payé') {
+                    $this->handleSuccessfulPayment($paiement);
+                }
 
-    if (!$user || !$formation) {
-        Log::error('Utilisateur ou formation non trouvé', ['user_id' => $userId, 'formation_id' => $formationId]);
-        return response()->json(['error' => 'Utilisateur ou formation invalide'], 400);
-    }
-
-    try {
-        $paiement = Paiement::updateOrCreate(
-            ['reference' => $paymentId],
-            [
-                'formation_id' => $formation->id,
-                'user_id' => $user->id,
-                'date_paiement' => now(),
-                'montant' => $amount,
-                'mode_paiement' => $this->mapPaymentMethod($paymentMethod),
-                'validation' => $status,
-                'status_paiement' => $status ? 'payé' : 'échoué',
-            ]
-        );
-
-        Log::info('Paiement enregistré ou mis à jour', ['payment_id' => $paiement->id]);
-
-        if ($status) { // Si le paiement est réussi
-            $this->handleSuccessfulPayment($paiement, $user, $formation);
+                return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors du traitement de la notification', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                return response()->json(['error' => 'Échec du traitement du paiement'], 500);
+            }
         } else {
-            Log::info('Paiement échoué', [
-                'payment_id' => $paiement->id,
-                'status' => $paymentStatus
-            ]);
+            Log::warning('Notification non valide - Signature incorrecte');
+            return response()->json(['error' => 'Signature invalide'], 400);
         }
-
-        return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
-    } catch (\Exception $e) {
-        Log::error('Erreur lors du traitement de la notification', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json(['error' => 'Échec du traitement du paiement'], 500);
-    }
-}
-
-
-    private function isPaymentComplete($status)
-    {
-        $isComplete = $status === 'sale_complete';
-        Log::info('Vérification du statut de paiement', ['status' => $status, 'isComplete' => $isComplete]);
-        return $isComplete;
     }
 
-    private function getPaymentStatus($status)
+    private function getPaymentStatus($type_event)
     {
-        Log::info('Statut de paiement reçu', ['status' => $status]);
-        switch ($status) {
+        switch ($type_event) {
             case 'sale_complete':
                 return 'payé';
             case 'sale_canceled':
@@ -240,37 +176,38 @@ class PaytechController extends Controller
         }
     }
 
-    private function handleSuccessfulPayment($payment, $user, $formation)
+    private function mapPaymentMethod($payTechMethod)
     {
-        Log::info('Traitement d\'un paiement réussi', ['payment_id' => $payment->id]);
+        $methodMap = [
+            'Carte Bancaire' => 'carte',
+            'PayPal' => 'paypal',
+            'Orange Money' => 'orange_money',
+            'Joni Joni' => 'joni_joni',
+            'Wari' => 'wari',
+            'Poste Cash' => 'poste_cash',
+            'Wave' => 'wave'
+        ];
 
-        try {
+        return $methodMap[$payTechMethod] ?? 'autre';
+    }
+
+    private function handleSuccessfulPayment($paiement)
+    {
+        Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
+
+        $user = User::find($paiement->user_id);
+        $formation = Formation::find($paiement->formation_id);
+
+        if ($user && $formation) {
             $user->formation_id = $formation->id;
             $user->role = 'etudiant';
             $user->save();
 
-            Log::info('Formation et rôle de l\'utilisateur mis à jour', [
-                'user_id' => $user->id,
-                'formation_id' => $formation->id,
-                'nouveau_role' => 'etudiant'
-            ]);
+            $user->notify(new PaymentSuccessNotification($paiement, $formation));
 
-            try {
-                $user->notify(new PaymentSuccessNotification($payment, $formation));
-                Log::info('Notification de paiement envoyée à l\'utilisateur', ['user_email' => $user->email]);
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de l\'envoi de la notification', ['error' => $e->getMessage()]);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors du traitement du paiement réussi', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'payment_id' => $payment->id,
-                'user_id' => $user->id,
-                'formation_id' => $formation->id
-            ]);
-            throw $e;
+            Log::info('Utilisateur mis à jour et notifié', ['user_id' => $user->id, 'formation_id' => $formation->id]);
+        } else {
+            Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
         }
     }
 
@@ -298,17 +235,6 @@ class PaytechController extends Controller
             'amount' => $payment->montant,
             'date' => $payment->date_paiement,
         ]);
-    }
-
-    private function mapPaymentMethod($payTechMethod)
-    {
-        $methodMap = [
-            'wave' => 'wave',
-            'orange_money' => 'orange_money',
-            'free_money' => 'free'
-        ];
-
-        return $methodMap[$payTechMethod] ?? 'wave';
     }
 
     public function paymentSuccess(Request $request)
