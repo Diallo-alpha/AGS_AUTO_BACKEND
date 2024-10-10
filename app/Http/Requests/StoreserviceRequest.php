@@ -26,7 +26,7 @@ class StoreserviceRequest extends FormRequest
         return [
             'titre' => 'required|string|max:255',
             'description' => 'required|string',
-            'photo' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:22048',
             'partenaire_id' => 'required|exists:partenaires,id'
         ];
     }

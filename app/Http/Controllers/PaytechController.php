@@ -282,7 +282,8 @@ class PaytechController extends Controller
 
             Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formation->id]);
 
-            return view('payments.success', compact('user', 'formation', 'paiement'));
+            // Rediriger vers la site deployer 
+            return redirect('https://admirable-macaron-cbfcb1.netlify.app/');
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'affichage de la page de succès', [
                 'error' => $e->getMessage(),

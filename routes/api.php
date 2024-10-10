@@ -27,6 +27,9 @@ Route::group([], function () {
     Route::get('/partenaires', [PartenaireController::class, 'index']);
     Route::get('/partenaires/{partenaire}', [PartenaireController::class, 'show']);
 
+    //afficher les vidéos d'une formation
+        Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
+
     // Formations
     Route::get('/formations', [FormationsController::class, 'index']);
     Route::get('/formations/{formation}', [FormationsController::class, 'show']);
@@ -101,8 +104,13 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
     Route::apiResource('ressources', RessourceController::class);
 
     // Vidéos
-    Route::apiResource('videos', VideoController::class);
+    // Route::apiResource('videos', VideoController::class);
     Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
+    Route::post('video/ajouter', [VideoController::class, 'store'])->name('videos.store');
+    Route::get('videos', [VideoController::class, 'index'])->name('videos.index');
+    Route::post('videos/', [VideoController::class, 'update'])->name('videos.update');
+    Route::delete('videos/{id}', [VideoController::class, 'destroy']);
+    Route::get('videos/{id}', [VideoController::class, 'show']);
 
     // Catégories
     Route::post('categories', [CategorieController::class, 'store']);
@@ -143,7 +151,6 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
 // Routes étudiant
 Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     //afficher les vidéos d'une formation
-    Route::get('/formations/{formation}/videos', [VideoController::class, 'videoRessources']);
     Route::get('video/{filename}', [VideoController::class, 'streamVideo'])->name('stream.video');
 
 
