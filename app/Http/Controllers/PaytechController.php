@@ -201,6 +201,11 @@ class PaytechController extends Controller
                 $user->assignRole('etudiant');
                 $user->save();
 
+                Log::info('Rôle étudiant assigné à l\'utilisateur', [
+                    'user_id' => $user->id,
+                    'roles' => $user->getRoleNames()
+                ]);
+
                 $user->notify(new PaymentSuccessNotification($paiement, $formation));
 
                 Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
@@ -251,8 +256,6 @@ class PaytechController extends Controller
                 Log::warning('Tentative d\'accès à la page de succès sans authentification');
                 return redirect()->route('login')->with('error', 'Veuillez vous connecter pour voir les détails de votre paiement.');
             }
-
-            Log::info('Utilisateur authentifié', ['user_id' => $user->id, 'roles' => $user->getRoleNames()]);
 
             $formationId = $request->input('formation_id');
             $transactionId = $request->input('ref_payment');
