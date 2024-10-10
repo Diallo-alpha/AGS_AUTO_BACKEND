@@ -34,4 +34,15 @@ class PaymentSuccessNotification extends Notification
                     ->action('Voir les détails', url('/formations/' . $this->formation->id))
                     ->line('Merci d\'avoir choisi notre plateforme!');
     }
+
+    // Ajoutez cette méthode
+    public function toDatabase($notifiable)
+    {
+        return [
+            'paiement_id' => $this->paiement->id,
+            'formation_id' => $this->formation->id,
+            'formation_name' => $this->formation->name,
+            'montant' => $this->paiement->montant,
+        ];
+    }
 }
