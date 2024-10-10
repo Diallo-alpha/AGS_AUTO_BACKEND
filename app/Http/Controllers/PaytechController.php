@@ -130,7 +130,13 @@ class PaytechController extends Controller
             Log::info('Notification validée comme provenant de PayTech');
 
             try {
-                $paiement = Paiement::where('reference', $ref_command)->firstOrFail();
+                $paiement = Paiement::where('reference', $ref_command)->first();
+
+                if (!$paiement) {
+                    Log::warning('Paiement non trouvé pour la référence', ['ref_command' => $ref_command]);
+                    return response()->json(['error' => 'Paiement non trouvé'], 404);
+                }
+
                 $paiement->status_paiement = $this->getPaymentStatus($type_event);
                 $paiement->montant = $item_price;
                 $paiement->mode_paiement = $this->mapPaymentMethod($payment_method);
@@ -190,31 +196,41 @@ class PaytechController extends Controller
         $user = User::find($paiement->user_id);
         $formation = Formation::find($paiement->formation_id);
 
-        if ($user && $formation) {
-            try {
-                // Ajout de l'utilisateur à la formation
-                DB::table('user_formations')->updateOrInsert(
-                    ['user_id' => $user->id, 'formation_id' => $formation->id],
-                    ['created_at' => now(), 'updated_at' => now()]
-                );
+        if (!$user || !$formation) {
+            Log::error('Utilisateur ou formation non trouvé pour le paiement réussi', [
+                'payment_id' => $paiement->id,
+                'user_id' => $paiement->user_id,
+                'formation_id' => $paiement->formation_id
+            ]);
+            return;
+        }
 
-                $user->assignRole('etudiant');
-                $user->save();
+        try {
+            // Ajout de l'utilisateur à la formation
+            DB::table('user_formations')->updateOrInsert(
+                ['user_id' => $user->id, 'formation_id' => $formation->id],
+                ['created_at' => now(), 'updated_at' => now()]
+            );
 
-                $user->notify(new PaymentSuccessNotification($paiement, $formation));
+            $user->assignRole('etudiant');
+            $user->save();
 
-                Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
-                    'user_id' => $user->id,
-                    'formation_id' => $formation->id
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de la mise à jour de l\'utilisateur ou de l\'envoi de la notification', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
-        } else {
-            Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
+            Log::info('Rôle étudiant assigné à l\'utilisateur', [
+                'user_id' => $user->id,
+                'roles' => $user->getRoleNames()
+            ]);
+
+            $user->notify(new PaymentSuccessNotification($paiement, $formation));
+
+            Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
+                'user_id' => $user->id,
+                'formation_id' => $formation->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la mise à jour de l\'utilisateur ou de l\'envoi de la notification', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
     public function paymentCancel(Request $request, $id)
@@ -252,8 +268,6 @@ class PaytechController extends Controller
                 return redirect()->route('login')->with('error', 'Veuillez vous connecter pour voir les détails de votre paiement.');
             }
 
-            Log::info('Utilisateur authentifié', ['user_id' => $user->id, 'roles' => $user->getRoleNames()]);
-
             $formationId = $request->input('formation_id');
             $transactionId = $request->input('ref_payment');
 
@@ -282,8 +296,7 @@ class PaytechController extends Controller
 
             Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formation->id]);
 
-            // Rediriger vers la site deployer
-            return redirect('https://admirable-macaron-cbfcb1.netlify.app/');
+            return view('payments.success', compact('user', 'formation', 'paiement'));
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'affichage de la page de succès', [
                 'error' => $e->getMessage(),
