@@ -195,7 +195,7 @@ class PaytechController extends Controller
             Log::info('Paiement enregistré ou mis à jour', ['payment_id' => $paiement->id]);
 
             if ($typeEvent === 'sale_complete') {
-                $this->handleSuccessfulPayment($paiement, $user, $formation);
+                return $this->handleSuccessfulPayment($request);
             } else {
                 Log::info('Paiement non complété', [
                     'payment_id' => $paiement->id,
@@ -225,11 +225,16 @@ class PaytechController extends Controller
         }
     }
 
-    public function handleSuccessfulPayment($payment, $user, $formation)
+    public function handleSuccessfulPayment(Request $request)
     {
-        Log::info('Traitement d\'un paiement réussi', ['payment_id' => $payment->id]);
+        Log::info('Traitement d\'un paiement réussi', ['request_data' => $request->all()]);
 
         try {
+            $refCommand = $request->input('ref_command');
+            $payment = Paiement::where('reference', $refCommand)->firstOrFail();
+            $user = User::findOrFail($payment->user_id);
+            $formation = Formation::findOrFail($payment->formation_id);
+
             $user->formation_id = $formation->id;
 
             // Utilisation de Spatie pour assigner le rôle 'etudiant'
@@ -251,15 +256,13 @@ class PaytechController extends Controller
                 Log::error('Erreur lors de l\'envoi de la notification', ['error' => $e->getMessage()]);
             }
 
+            return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
         } catch (\Exception $e) {
             Log::error('Erreur lors du traitement du paiement réussi', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'payment_id' => $payment->id,
-                'user_id' => $user->id,
-                'formation_id' => $formation->id
             ]);
-            throw $e;
+            return response()->json(['error' => 'Échec du traitement du paiement'], 500);
         }
     }
 
