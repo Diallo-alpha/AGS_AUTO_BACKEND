@@ -122,7 +122,7 @@ class PaytechController extends Controller
         }
 
         $payload = $request->getContent();
-        $secretKey = env('0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
+        $secretKey = env('PAYTECH_API_SECRET', '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
         $expectedSignature = hash_hmac('sha256', $payload, $secretKey);
 
         if ($receivedSignature !== $expectedSignature) {
