@@ -198,7 +198,7 @@ class PaytechController extends Controller
                     ['created_at' => now(), 'updated_at' => now()]
                 );
 
-                $user->role = 'etudiant';
+                $user->assignRole('etudiant');
                 $user->save();
 
                 $user->notify(new PaymentSuccessNotification($paiement, $formation));
@@ -282,7 +282,7 @@ class PaytechController extends Controller
 
             Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formation->id]);
 
-            // Rediriger vers la site deployer 
+            // Rediriger vers la site deployer
             return redirect('https://admirable-macaron-cbfcb1.netlify.app/');
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'affichage de la page de succès', [
