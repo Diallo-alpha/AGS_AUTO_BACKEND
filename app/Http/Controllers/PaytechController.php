@@ -198,7 +198,7 @@ class PaytechController extends Controller
                     ['created_at' => now(), 'updated_at' => now()]
                 );
 
-                $user->role = 'etudiant';
+                $user->assignRole('etudiant');
                 $user->save();
 
                 $user->notify(new PaymentSuccessNotification($paiement, $formation));
