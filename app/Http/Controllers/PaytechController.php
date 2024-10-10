@@ -56,8 +56,8 @@ class PaytechController extends Controller
 
         Log::info('Création du paiement pour', ['user_id' => $user->id, 'formation_id' => $formation->id]);
 
-        $apiKey = env('PAYTECH_API_KEY');
-        $apiSecret = env('PAYTECH_API_SECRET');
+        $apiKey = env('3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
+        $apiSecret = env('0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
 
         $payTech = new PaytechService($apiKey, $apiSecret);
 
@@ -117,8 +117,8 @@ class PaytechController extends Controller
     {
         Log::info('Vérification de la signature Paytech', ['request_headers' => $request->headers->all()]);
 
-        $apiKey = env('PAYTECH_API_KEY');
-        $apiSecret = env('PAYTECH_API_SECRET');
+        $apiKey = env('3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
+        $apiSecret = env('0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
 
         $receivedApiKey = $request->input('api_key_sha256');
         $receivedApiSecret = $request->input('api_secret_sha256');
