@@ -70,7 +70,7 @@ class PaytechController extends Controller
         ->setCurrency($validatedData['currency'])
         ->setNotificationUrl([
             'ipn_url' => route('paytech.notification'),
-            'success_url' => route('payment.success'),
+            'success_url' => route('paytech.successful-payment'),
             'cancel_url' => route('paytech.cancel'),
         ]);
 
