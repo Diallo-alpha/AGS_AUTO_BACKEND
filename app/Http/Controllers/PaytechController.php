@@ -139,7 +139,12 @@ class PaytechController extends Controller
 
     public function handleNotification(Request $request)
     {
-        Log::info('Notification PayTech reçue', ['request_data' => $request->all()]);
+        Log::info('Notification PayTech reçue', [
+            'request_data' => $request->all(),
+            'method' => $request->getMethod(),
+            'user' => $request->user() ? $request->user()->id : 'Non authentifié',
+            'roles' => $request->user() ? $request->user()->getRoleNames() : 'Aucun'
+        ]);
 
         if (!$this->verifyPaytechSignature($request)) {
             Log::error('Signature PayTech invalide');
@@ -220,7 +225,7 @@ class PaytechController extends Controller
         }
     }
 
-    private function handleSuccessfulPayment($payment, $user, $formation)
+    public function handleSuccessfulPayment($payment, $user, $formation)
     {
         Log::info('Traitement d\'un paiement réussi', ['payment_id' => $payment->id]);
 
