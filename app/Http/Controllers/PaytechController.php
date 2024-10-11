@@ -304,5 +304,6 @@ class PaytechController extends Controller
             ]);
             return redirect()->route('home')->with('error', 'Une erreur est survenue lors de l\'affichage de la page de succès.');
         }
+        //correction 
     }
 }
