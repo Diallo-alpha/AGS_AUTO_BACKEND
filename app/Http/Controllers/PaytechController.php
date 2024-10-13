@@ -205,21 +205,24 @@ class PaytechController extends Controller
         }
 
         try {
-            // Ajout de l'utilisateur à la formation
-            DB::table('user_formations')->updateOrInsert(
-                ['user_id' => $user->id, 'formation_id' => $formation->id],
-                ['created_at' => now(), 'updated_at' => now()]
-            );
+            DB::transaction(function () use ($user, $formation, $paiement) {
+                // Ajout de l'utilisateur à la formation
+                DB::table('user_formations')->updateOrInsert(
+                    ['user_id' => $user->id, 'formation_id' => $formation->id],
+                    ['created_at' => now(), 'updated_at' => now()]
+                );
 
-            $user->assignRole('etudiant');
-            $user->save();
+                // Mise à jour du rôle de l'utilisateur
+                $user->syncRoles(['etudiant']);
+                $user->save();
 
-            Log::info('Rôle étudiant assigné à l\'utilisateur', [
-                'user_id' => $user->id,
-                'roles' => $user->getRoleNames()
-            ]);
+                Log::info('Rôle étudiant assigné à l\'utilisateur', [
+                    'user_id' => $user->id,
+                    'roles' => $user->getRoleNames()
+                ]);
 
-            $user->notify(new PaymentSuccessNotification($paiement, $formation));
+                $user->notify(new PaymentSuccessNotification($paiement, $formation));
+            });
 
             Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
                 'user_id' => $user->id,
@@ -268,21 +271,8 @@ class PaytechController extends Controller
             Log::info('Informations reçues', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
 
             if (!$formationId || !$transactionId) {
-                // Si les informations ne sont pas dans la requête, essayons de les récupérer de la notification IPN
-                $latestPayment = Paiement::where('status_paiement', 'payé')
-                                         ->orderBy('updated_at', 'desc')
-                                         ->first();
-
-                if ($latestPayment) {
-                    $formationId = $latestPayment->formation_id;
-                    $transactionId = $latestPayment->reference;
-                    Log::info('Informations récupérées du dernier paiement', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
-                }
-            }
-
-            if (!$formationId || !$transactionId) {
                 Log::error('Formation ID ou Transaction ID non trouvés', ['request' => $request->all()]);
-                return response()->json(['error' => 'Informations de paiement manquantes.'], 400);
+                return redirect()->route('home')->with('error', 'Informations de paiement manquantes.');
             }
 
             $paiement = Paiement::where(function ($query) use ($transactionId) {
@@ -295,7 +285,7 @@ class PaytechController extends Controller
 
             if (!$paiement) {
                 Log::warning('Paiement non trouvé', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
-                return response()->json(['error' => 'Détails du paiement non trouvés.'], 404);
+                return redirect()->route('home')->with('error', 'Détails du paiement non trouvés.');
             }
 
             Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formationId]);
@@ -303,13 +293,15 @@ class PaytechController extends Controller
             // Construire l'URL de redirection avec les paramètres nécessaires
             $redirectUrl = self::SUCCESS_REDIRECT_URL . "?status=success&formation_id={$formationId}&transaction_id={$transactionId}";
 
-            return response()->json(['redirect_url' => $redirectUrl]);
+            // Effectuer la redirection
+            return redirect()->away($redirectUrl);
         } catch (\Exception $e) {
             Log::error('Erreur lors du traitement du succès de paiement', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['error' => 'Une erreur est survenue lors du traitement du paiement.'], 500);
+            return redirect()->route('home')->with('error', 'Une erreur est survenue lors du traitement du paiement.');
         }
     }
+    //Si les informations ne sont pas trouvées dans la requête, on essaie de les récupérer à partir du dernier paiement réussi enregistré dans la base de données
 }
