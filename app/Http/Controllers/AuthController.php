@@ -31,27 +31,20 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'telephone' => $request->telephone,
-            'role' => 'client', // Assignation directe du rôle 'client'
+            'role' => 'client', // On définit le rôle par défaut
             'photo' => null,
         ]);
+
+        // On assigne également le rôle avec Spatie
+        $user->assignRole('client');
 
         if ($request->hasFile('photo')) {
             $imagePath = $request->file('photo')->store('photos', 'public');
             $user->photo = $imagePath;
+            $user->save();
         }
 
-        $user->save();
-
         $token = JWTAuth::fromUser($user);
-
-        // Log détaillé après la création de l'utilisateur
-        Log::info('Nouvel utilisateur inscrit', [
-            'user_id' => $user->id,
-            'email' => $user->email,
-            'role' => $user->role,
-            'nom_complet' => $user->nom_complet,
-            'telephone' => $user->telephone,
-        ]);
 
         return response()->json(compact('user', 'token'));
     }
@@ -63,6 +56,14 @@ class AuthController extends Controller
         if (!$token = auth()->attempt($credentials)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
+
+        $user = auth()->user();
+        $roles = $user->getRoleNames(); // Méthode de Spatie pour obtenir les noms des rôles
+
+        Log::info('Utilisateur connecté', [
+            'user' => $user->email,
+            'roles' => $roles,
+        ]);
 
         return $this->respondWithToken($token);
     }
