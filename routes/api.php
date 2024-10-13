@@ -63,6 +63,7 @@ Route::group([], function () {
     Route::get('/paytech/success', [PaytechController::class, 'paymentSuccess'])->name('payment.success');
     Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
+    Route::get('/', [PaytechController::class, 'home'])->name('home');
 
     //afficher les produits
     Route::get('produit/categorie/{id}', [ProduitController::class, 'getProductsByCategory'])->name('produit.categorie');
