@@ -217,14 +217,19 @@ class PaytechController extends Controller
                     ['created_at' => now(), 'updated_at' => now()]
                 );
 
-                // Mise à jour du rôle de l'utilisateur
-                $user->syncRoles(['etudiant']);
+                // Mise à jour du rôle de l'utilisateur avec assignRole
+                $user->assignRole('etudiant');
+
+                // Mise à jour directe de la colonne role
+                $user->role = 'etudiant';
+                $user->save();
 
                 // Vérification immédiate après la mise à jour
                 $user->refresh();
-                Log::info('Rôles de l\'utilisateur après sync', [
+                Log::info('Rôles de l\'utilisateur après mise à jour', [
                     'user_id' => $user->id,
-                    'roles' => $user->getRoleNames()
+                    'roles' => $user->getRoleNames(),
+                    'role_column' => $user->role
                 ]);
 
                 $user->notify(new PaymentSuccessNotification($paiement, $formation));
@@ -234,7 +239,8 @@ class PaytechController extends Controller
             $user->refresh();
             Log::info('Rôles de l\'utilisateur après transaction', [
                 'user_id' => $user->id,
-                'roles' => $user->getRoleNames()
+                'roles' => $user->getRoleNames(),
+                'role_column' => $user->role
             ]);
 
             Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
