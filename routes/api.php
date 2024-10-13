@@ -60,7 +60,7 @@ Route::group([], function () {
     // Paiement Paytech
     Route::post('/payment/initiate', [PaytechController::class, 'initiatePayment'])->name('payment.initiate');
     Route::post('/paytech/notification', [PaytechController::class, 'handleNotification'])->name('paytech.notification');
-    Route::get('/paytech/success', [PaytechController::class, 'handleSuccessfulPayment'])->name('payment.success');
+    Route::get('/paytech/success', [PaytechController::class, 'paymentSuccess'])->name('payment.success');
     Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
 
