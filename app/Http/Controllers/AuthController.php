@@ -12,14 +12,13 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
-    // Inscription
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'nom_complet' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
-            'telephone' => 'required|string|max:15',
+            'telephone' => 'required|string|max:15|unique:users',
             'photo' => 'nullable|image|mimes:jpeg,png|max:12077',
         ]);
 
@@ -27,32 +26,36 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Création d'un nouvel utilisateur
         $user = User::create([
             'nom_complet' => $request->nom_complet,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'telephone' => $request->telephone,
-            'photo' => null, // Pas de photo par défaut
-            'role' => 'client',
+            'role' => 'client', // Assignation directe du rôle 'client'
+            'photo' => null,
         ]);
 
-        // Gestion de l'image uploadée
         if ($request->hasFile('photo')) {
             $imagePath = $request->file('photo')->store('photos', 'public');
             $user->photo = $imagePath;
         }
 
-        // Sauvegarde de l'utilisateur
         $user->save();
 
-        // Génération du token JWT
         $token = JWTAuth::fromUser($user);
+
+        // Log détaillé après la création de l'utilisateur
+        Log::info('Nouvel utilisateur inscrit', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'role' => $user->role,
+            'nom_complet' => $user->nom_complet,
+            'telephone' => $user->telephone,
+        ]);
 
         return response()->json(compact('user', 'token'));
     }
 
-    // Connexion
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
@@ -61,17 +64,9 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $user = auth()->user();
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
-            'user' => $user,
-        ]);
+        return $this->respondWithToken($token);
     }
 
-    // Déconnexion
     public function logout()
     {
         auth()->logout();
@@ -79,60 +74,38 @@ class AuthController extends Controller
         return response()->json(['message' => 'Déconnecté avec succès']);
     }
 
-    // Rafraîchir le token
     public function refresh()
     {
-        $newToken = auth()->refresh();
-
-        return $this->respondWithToken($newToken);
+        return $this->respondWithToken(auth()->refresh());
     }
 
-    // Répondre avec un token JWT
     protected function respondWithToken($token)
     {
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
+            'expires_in' => auth()->factory()->getTTL() * 60 * 3, // 3 heures
+            'user' => auth()->user(),
         ]);
     }
 
-    // Mise à jour du profil utilisateur
     public function update(Request $request)
     {
-        // Journaliser le contenu JSON brut de la requête
-        \Log::info('Contenu JSON brut de la requête:', [
-            'json' => $request->getContent(),
-        ]);
-
-        // Décoder manuellement le JSON
         $jsonData = json_decode($request->getContent(), true);
 
-        // Vérifier si les données JSON décodées sont nulles
-        if (is_null($jsonData)) {
-            \Log::error('Données JSON décodées sont nulles ou invalides');
-            return response()->json([
-                'error' => 'Données JSON invalides',
-            ], 400);
-        }
-
-        // Vérifier si le JSON est valide
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            \Log::error('Erreur de décodage JSON:', [
-                'error' => json_last_error_msg(),
-            ]);
+        if (is_null($jsonData) || json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
                 'error' => 'Données JSON invalides',
                 'details' => json_last_error_msg()
             ], 400);
         }
 
-        // Utiliser les données JSON décodées pour la validation
         $validator = Validator::make($jsonData, [
             'nom_complet' => 'sometimes|string|max:255',
             'password' => 'nullable|string|min:6|confirmed',
-            'telephone' => 'sometimes|string|max:15',
+            'telephone' => 'sometimes|string|max:15|unique:users,telephone,' . auth()->id(),
             'photo' => 'nullable|image|mimes:jpeg,png|max:12077',
+            'role' => 'sometimes|string|in:client,admin',
         ]);
 
         if ($validator->fails()) {
@@ -140,9 +113,7 @@ class AuthController extends Controller
         }
 
         $user = auth()->user();
-
-        // Vérifier s'il y a des changements
-        $changements = array_intersect_key($jsonData, array_flip(['nom_complet', 'telephone', 'password']));
+        $changements = array_intersect_key($jsonData, array_flip(['nom_complet', 'telephone', 'password', 'role']));
 
         if (empty($changements)) {
             return response()->json([
@@ -151,7 +122,6 @@ class AuthController extends Controller
             ], 400);
         }
 
-        // Appliquer les changements
         foreach ($changements as $cle => $valeur) {
             if ($cle === 'password') {
                 $user->password = Hash::make($valeur);
@@ -173,7 +143,6 @@ class AuthController extends Controller
         }
     }
 
-    // Suppression d'un utilisateur
     public function delete()
     {
         $user = auth()->user();
