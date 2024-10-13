@@ -44,6 +44,11 @@ class PaytechController extends Controller
     {
         Log::info('Tentative d\'initialisation d\'un paiement', ['request_data' => $request->all()]);
 
+        if (!Auth::check()) {
+            Log::warning('Tentative d\'initiation de paiement sans authentification');
+            return response()->json(['error' => 'Utilisateur non authentifié'], 401);
+        }
+
         $validatedData = $request->validate([
             'item_name' => 'required|string|max:255',
             'item_price' => 'required|numeric',
@@ -74,7 +79,7 @@ class PaytechController extends Controller
             'success_url' => route('payment.success'),
             'cancel_url' => route('paytech.cancel'),
         ]);
-        
+
         $response = $payTech->send();
 
         if ($response['success'] === 1) {
