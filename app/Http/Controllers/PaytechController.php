@@ -44,11 +44,6 @@ class PaytechController extends Controller
     {
         Log::info('Tentative d\'initialisation d\'un paiement', ['request_data' => $request->all()]);
 
-        if (!Auth::check()) {
-            Log::warning('Tentative d\'initiation de paiement sans authentification');
-            return response()->json(['error' => 'Utilisateur non authentifié'], 401);
-        }
-
         $validatedData = $request->validate([
             'item_name' => 'required|string|max:255',
             'item_price' => 'required|numeric',
@@ -58,14 +53,11 @@ class PaytechController extends Controller
 
         $user = Auth::user();
         $formation = Formation::findOrFail($validatedData['formation_id']);
-        $transaction_id = "ags-{$user->id}_formation_{$formation->id}_" . uniqid();
+        $transaction_id = "xeeweule-{$user->id}_formation_{$formation->id}_" . uniqid();
 
         Log::info('Création du paiement pour', ['user_id' => $user->id, 'formation_id' => $formation->id]);
 
-        $apiKey = env('PAYTECH_API_KEY', '3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
-        $apiSecret = env('PAYTECH_API_SECRET', '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
-
-        $payTech = new PaytechService($apiKey, $apiSecret);
+        $payTech = new PaytechService(env('PAYTECH_API_KEY'), env('PAYTECH_API_SECRET'));
 
         $payTech->setQuery([
             'item_name' => $validatedData['item_name'],
@@ -80,12 +72,14 @@ class PaytechController extends Controller
             'cancel_url' => route('paytech.cancel'),
         ]);
 
+
         $response = $payTech->send();
 
         if ($response['success'] === 1) {
             Log::info('Paiement initié avec succès', ['transaction_id' => $transaction_id]);
 
             try {
+                // Stockage initial du paiement dans la base de données
                 $paiement = Paiement::create([
                     'reference' => $transaction_id,
                     'formation_id' => $formation->id,
