@@ -303,8 +303,9 @@ class PaytechController extends Controller
             return redirect()->route('home')->with('error', 'Une erreur est survenue lors du traitement du paiement.');
         }
     }
-    public function homme() {
-        return self::SUCCESS_REDIRECT_URL;
+    public function home()
+    {
+        return redirect()->away(self::SUCCESS_REDIRECT_URL);
     }
     //Si les informations ne sont pas trouvées dans la requête, on essaie de les récupérer à partir du dernier paiement réussi enregistré dans la base de données
 }
