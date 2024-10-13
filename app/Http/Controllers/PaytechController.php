@@ -190,7 +190,7 @@ class PaytechController extends Controller
     }
     public function handleSuccessfulPayment(Paiement $paiement)
     {
-        Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
+        Log::info('Début du traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
 
         $user = User::find($paiement->user_id);
         $formation = Formation::find($paiement->formation_id);
@@ -204,6 +204,11 @@ class PaytechController extends Controller
             return;
         }
 
+        Log::info('Rôles de l\'utilisateur avant mise à jour', [
+            'user_id' => $user->id,
+            'roles' => $user->getRoleNames()
+        ]);
+
         try {
             DB::transaction(function () use ($user, $formation, $paiement) {
                 // Ajout de l'utilisateur à la formation
@@ -214,15 +219,23 @@ class PaytechController extends Controller
 
                 // Mise à jour du rôle de l'utilisateur
                 $user->syncRoles(['etudiant']);
-                $user->save();
 
-                Log::info('Rôle étudiant assigné à l\'utilisateur', [
+                // Vérification immédiate après la mise à jour
+                $user->refresh();
+                Log::info('Rôles de l\'utilisateur après sync', [
                     'user_id' => $user->id,
                     'roles' => $user->getRoleNames()
                 ]);
 
                 $user->notify(new PaymentSuccessNotification($paiement, $formation));
             });
+
+            // Vérification finale après la transaction
+            $user->refresh();
+            Log::info('Rôles de l\'utilisateur après transaction', [
+                'user_id' => $user->id,
+                'roles' => $user->getRoleNames()
+            ]);
 
             Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
                 'user_id' => $user->id,
