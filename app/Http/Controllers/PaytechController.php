@@ -257,50 +257,59 @@ class PaytechController extends Controller
         ]);
     }
     public function paymentSuccess(Request $request)
-{
-    Log::info('Traitement du succès de paiement', ['request_data' => $request->all()]);
+    {
+        Log::info('Traitement du succès de paiement', ['request_data' => $request->all()]);
 
-    try {
-        // Essayer de récupérer les informations de différentes sources possibles
-        $formationId = $request->input('formation_id') ?? $request->query('formation_id');
-        $transactionId = $request->input('ref_payment') ?? $request->query('ref_command') ?? $request->query('transaction_id');
+        try {
+            // Essayer de récupérer les informations de différentes sources possibles
+            $formationId = $request->input('formation_id') ?? $request->query('formation_id');
+            $transactionId = $request->input('ref_payment') ?? $request->query('ref_command') ?? $request->query('transaction_id');
 
-        if (!$formationId || !$transactionId) {
-            // Tentative de récupération des informations depuis la session ou une autre source
-            $formationId = session('last_formation_id');
-            $transactionId = session('last_transaction_id');
+            Log::info('Informations reçues', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
+
+            if (!$formationId || !$transactionId) {
+                // Si les informations ne sont pas dans la requête, essayons de les récupérer de la notification IPN
+                $latestPayment = Paiement::where('status_paiement', 'payé')
+                                         ->orderBy('updated_at', 'desc')
+                                         ->first();
+
+                if ($latestPayment) {
+                    $formationId = $latestPayment->formation_id;
+                    $transactionId = $latestPayment->reference;
+                    Log::info('Informations récupérées du dernier paiement', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
+                }
+            }
+
+            if (!$formationId || !$transactionId) {
+                Log::error('Formation ID ou Transaction ID non trouvés', ['request' => $request->all()]);
+                return response()->json(['error' => 'Informations de paiement manquantes.'], 400);
+            }
+
+            $paiement = Paiement::where(function ($query) use ($transactionId) {
+                $query->where('reference', $transactionId)
+                      ->orWhere('reference', 'like', "%{$transactionId}%");
+            })
+            ->where('formation_id', $formationId)
+            ->where('status_paiement', 'payé')
+            ->first();
+
+            if (!$paiement) {
+                Log::warning('Paiement non trouvé', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
+                return response()->json(['error' => 'Détails du paiement non trouvés.'], 404);
+            }
+
+            Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formationId]);
+
+            // Construire l'URL de redirection avec les paramètres nécessaires
+            $redirectUrl = self::SUCCESS_REDIRECT_URL . "?status=success&formation_id={$formationId}&transaction_id={$transactionId}";
+
+            return response()->json(['redirect_url' => $redirectUrl]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du traitement du succès de paiement', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Une erreur est survenue lors du traitement du paiement.'], 500);
         }
-
-        if (!$formationId || !$transactionId) {
-            Log::error('Formation ID ou Transaction ID non trouvés', ['request' => $request->all(), 'session' => session()->all()]);
-            return response()->json(['error' => 'Informations de paiement manquantes.'], 400);
-        }
-
-        $paiement = Paiement::where(function ($query) use ($transactionId) {
-            $query->where('reference', $transactionId)
-                  ->orWhere('reference', 'like', "%{$transactionId}%");
-        })
-        ->where('formation_id', $formationId)
-        ->where('status_paiement', 'payé')
-        ->first();
-
-        if (!$paiement) {
-            Log::warning('Paiement non trouvé', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
-            return response()->json(['error' => 'Détails du paiement non trouvés.'], 404);
-        }
-
-        Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formationId]);
-
-        // Construire l'URL de redirection avec les paramètres nécessaires
-        $redirectUrl = self::SUCCESS_REDIRECT_URL . "?status=success&formation_id={$formationId}&transaction_id={$transactionId}";
-
-        return response()->json(['redirect_url' => $redirectUrl]);
-    } catch (\Exception $e) {
-        Log::error('Erreur lors du traitement du succès de paiement', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json(['error' => 'Une erreur est survenue lors du traitement du paiement.'], 500);
     }
-}
 }
