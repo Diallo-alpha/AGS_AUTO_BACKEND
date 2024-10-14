@@ -64,7 +64,7 @@ Route::group([], function () {
     Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
     Route::get('/', [PaytechController::class, 'home'])->name('home');
-    
+
     //afficher les produits
     Route::get('produit/categorie/{id}', [ProduitController::class, 'getProductsByCategory'])->name('produit.categorie');
 });
@@ -76,6 +76,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('refresh', [AuthController::class, 'refresh']);
     Route::patch('update', [AuthController::class, 'update']);
     Route::delete('delete', [AuthController::class, 'delete']);
+    Route::post('update-profile-picture', [AuthController::class, 'updateProfilePicture'])->name('modifier-profil');
+    Route::get('user-info', [AuthController::class, 'getUserInfo'])->name('user.info');
 
     // Commandes
     Route::post('/commandes', [CommandeController::class, 'store']);
