@@ -12,160 +12,125 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
-    // Inscription
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'nom_complet' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
-            'telephone' => 'required|string|max:15',
-            'photo' => 'nullable|image|mimes:jpeg,png|max:12077',
+            'telephone' => 'required|string|max:15|unique:users',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:12077',
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        // Création d'un nouvel utilisateur
         $user = User::create([
             'nom_complet' => $request->nom_complet,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'telephone' => $request->telephone,
-            'photo' => null, // Pas de photo par défaut
             'role' => 'client',
+            'photo' => null,
         ]);
 
-        // Gestion de l'image uploadée
+        $user->assignRole('client');
+
         if ($request->hasFile('photo')) {
             $imagePath = $request->file('photo')->store('photos', 'public');
             $user->photo = $imagePath;
+            $user->save();
         }
 
-        // Sauvegarde de l'utilisateur
-        $user->save();
-
-        // Génération du token JWT
         $token = JWTAuth::fromUser($user);
 
-        return response()->json(compact('user', 'token'));
+        return response()->json([
+            'message' => 'Utilisateur enregistré avec succès',
+            'user' => $user,
+            'token' => $token
+        ], 201);
     }
 
-    // Connexion
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
         if (!$token = auth()->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Identifiants invalides'], 401);
         }
 
         $user = auth()->user();
+        $roles = $user->getRoleNames();
 
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
-            'user' => $user,
+        Log::info('Utilisateur connecté', [
+            'user' => $user->email,
+            'roles' => $roles,
         ]);
+
+        return $this->respondWithToken($token);
     }
 
-    // Déconnexion
     public function logout()
     {
         auth()->logout();
 
-        return response()->json(['message' => 'Déconnecté avec succès']);
+        return response()->json(['message' => 'Déconnexion réussie']);
     }
 
-    // Rafraîchir le token
     public function refresh()
     {
-        $newToken = auth()->refresh();
-
-        return $this->respondWithToken($newToken);
+        return $this->respondWithToken(auth()->refresh());
     }
 
-    // Répondre avec un token JWT
     protected function respondWithToken($token)
     {
+        $user = auth()->user();
+        $userData = $user->toArray();
+
+        $userData['profile_picture'] = $user->photo
+            ? asset('storage/' . $user->photo)
+            : asset('storage/photos/default-profile-pic.png');
+
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
+            'expires_in' => auth()->factory()->getTTL() * 60 * 3,
+            'user' => $userData,
         ]);
     }
 
-    // Mise à jour du profil utilisateur
     public function update(Request $request)
     {
-        // Journaliser le contenu JSON brut de la requête
-        \Log::info('Contenu JSON brut de la requête:', [
-            'json' => $request->getContent(),
-        ]);
+        $user = auth()->user();
 
-        // Décoder manuellement le JSON
-        $jsonData = json_decode($request->getContent(), true);
-
-        // Vérifier si les données JSON décodées sont nulles
-        if (is_null($jsonData)) {
-            \Log::error('Données JSON décodées sont nulles ou invalides');
-            return response()->json([
-                'error' => 'Données JSON invalides',
-            ], 400);
-        }
-
-        // Vérifier si le JSON est valide
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            \Log::error('Erreur de décodage JSON:', [
-                'error' => json_last_error_msg(),
-            ]);
-            return response()->json([
-                'error' => 'Données JSON invalides',
-                'details' => json_last_error_msg()
-            ], 400);
-        }
-
-        // Utiliser les données JSON décodées pour la validation
-        $validator = Validator::make($jsonData, [
+        $validator = Validator::make($request->all(), [
             'nom_complet' => 'sometimes|string|max:255',
             'password' => 'nullable|string|min:6|confirmed',
-            'telephone' => 'sometimes|string|max:15',
-            'photo' => 'nullable|image|mimes:jpeg,png|max:12077',
+            'telephone' => 'sometimes|string|max:15|unique:users,telephone,' . $user->id,
+            'role' => 'sometimes|string|in:client,admin',
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        $user = auth()->user();
-
-        // Vérifier s'il y a des changements
-        $changements = array_intersect_key($jsonData, array_flip(['nom_complet', 'telephone', 'password']));
-
-        if (empty($changements)) {
-            return response()->json([
-                'message' => 'Aucune donnée valide reçue pour la mise à jour',
-                'donnees_recues' => $jsonData
-            ], 400);
+        $fieldsToUpdate = ['nom_complet', 'telephone', 'role'];
+        foreach ($fieldsToUpdate as $field) {
+            if ($request->has($field)) {
+                $user->$field = $request->$field;
+            }
         }
 
-        // Appliquer les changements
-        foreach ($changements as $cle => $valeur) {
-            if ($cle === 'password') {
-                $user->password = Hash::make($valeur);
-            } else {
-                $user->$cle = $valeur;
-            }
+        if ($request->has('password')) {
+            $user->password = Hash::make($request->password);
         }
 
         try {
             $user->save();
             return response()->json([
                 'message' => 'Profil mis à jour avec succès',
-                'user' => $user->fresh(),
-                'changements' => $changements
+                'user' => $user->fresh()
             ], 200);
         } catch (\Exception $e) {
             Log::error('Erreur lors de la mise à jour du profil: ' . $e->getMessage());
@@ -173,7 +138,6 @@ class AuthController extends Controller
         }
     }
 
-    // Suppression d'un utilisateur
     public function delete()
     {
         $user = auth()->user();
@@ -185,5 +149,57 @@ class AuthController extends Controller
         $user->delete();
 
         return response()->json(['message' => 'Compte supprimé avec succès']);
+    }
+
+    public function updateProfilePicture(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'photo' => 'required|image|mimes:jpeg,png,jpg|max:12077',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $user = auth()->user();
+
+        if ($request->hasFile('photo')) {
+            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+                Storage::disk('public')->delete($user->photo);
+            }
+
+            $imagePath = $request->file('photo')->store('photos_profil', 'public');
+            $user->photo = $imagePath;
+            $user->save();
+
+            $photoUrl = asset('storage/' . $imagePath);
+
+            return response()->json([
+                'message' => 'Photo de profil mise à jour avec succès',
+                'photo_url' => $photoUrl
+            ]);
+        }
+
+        return response()->json(['error' => 'Aucun fichier n\'a été uploadé'], 400);
+    }
+
+    public function getUserInfo()
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $userInfo = [
+            'id' => $user->id,
+            'nom_complet' => $user->nom_complet,
+            'email' => $user->email,
+            'telephone' => $user->telephone,
+            'role' => $user->role,
+            'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/default-profile-pic.png'),
+        ];
+
+        return response()->json($userInfo);
     }
 }

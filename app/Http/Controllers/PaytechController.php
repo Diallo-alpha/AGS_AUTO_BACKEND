@@ -53,14 +53,11 @@ class PaytechController extends Controller
 
         $user = Auth::user();
         $formation = Formation::findOrFail($validatedData['formation_id']);
-        $transaction_id = "ags-{$user->id}_formation_{$formation->id}_" . uniqid();
+        $transaction_id = "xeeweule-{$user->id}_formation_{$formation->id}_" . uniqid();
 
         Log::info('Création du paiement pour', ['user_id' => $user->id, 'formation_id' => $formation->id]);
 
-        $apiKey = env('PAYTECH_API_KEY', '3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
-        $apiSecret = env('PAYTECH_API_SECRET', '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
-
-        $payTech = new PaytechService($apiKey, $apiSecret);
+        $payTech = new PaytechService(env('PAYTECH_API_KEY'), env('PAYTECH_API_SECRET'));
 
         $payTech->setQuery([
             'item_name' => $validatedData['item_name'],
@@ -75,12 +72,14 @@ class PaytechController extends Controller
             'cancel_url' => route('paytech.cancel'),
         ]);
 
+
         $response = $payTech->send();
 
         if ($response['success'] === 1) {
             Log::info('Paiement initié avec succès', ['transaction_id' => $transaction_id]);
 
             try {
+                // Stockage initial du paiement dans la base de données
                 $paiement = Paiement::create([
                     'reference' => $transaction_id,
                     'formation_id' => $formation->id,
@@ -130,7 +129,13 @@ class PaytechController extends Controller
             Log::info('Notification validée comme provenant de PayTech');
 
             try {
-                $paiement = Paiement::where('reference', $ref_command)->firstOrFail();
+                $paiement = Paiement::where('reference', $ref_command)->first();
+
+                if (!$paiement) {
+                    Log::warning('Paiement non trouvé pour la référence', ['ref_command' => $ref_command]);
+                    return response()->json(['error' => 'Paiement non trouvé'], 404);
+                }
+
                 $paiement->status_paiement = $this->getPaymentStatus($type_event);
                 $paiement->montant = $item_price;
                 $paiement->mode_paiement = $this->mapPaymentMethod($payment_method);
@@ -185,41 +190,68 @@ class PaytechController extends Controller
     }
     public function handleSuccessfulPayment(Paiement $paiement)
     {
-        Log::info('Traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
+        Log::info('Début du traitement d\'un paiement réussi', ['payment_id' => $paiement->id]);
 
         $user = User::find($paiement->user_id);
         $formation = Formation::find($paiement->formation_id);
 
-        if ($user && $formation) {
-            try {
+        if (!$user || !$formation) {
+            Log::error('Utilisateur ou formation non trouvé pour le paiement réussi', [
+                'payment_id' => $paiement->id,
+                'user_id' => $paiement->user_id,
+                'formation_id' => $paiement->formation_id
+            ]);
+            return;
+        }
+
+        Log::info('Rôles de l\'utilisateur avant mise à jour', [
+            'user_id' => $user->id,
+            'roles' => $user->getRoleNames()
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $formation, $paiement) {
                 // Ajout de l'utilisateur à la formation
                 DB::table('user_formations')->updateOrInsert(
                     ['user_id' => $user->id, 'formation_id' => $formation->id],
                     ['created_at' => now(), 'updated_at' => now()]
                 );
 
+                // Mise à jour du rôle de l'utilisateur avec assignRole
                 $user->assignRole('etudiant');
+
+                // Mise à jour directe de la colonne role
+                $user->role = 'etudiant';
                 $user->save();
 
-                Log::info('Rôle étudiant assigné à l\'utilisateur', [
+                // Vérification immédiate après la mise à jour
+                $user->refresh();
+                Log::info('Rôles de l\'utilisateur après mise à jour', [
                     'user_id' => $user->id,
-                    'roles' => $user->getRoleNames()
+                    'roles' => $user->getRoleNames(),
+                    'role_column' => $user->role
                 ]);
 
                 $user->notify(new PaymentSuccessNotification($paiement, $formation));
+            });
 
-                Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
-                    'user_id' => $user->id,
-                    'formation_id' => $formation->id
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de la mise à jour de l\'utilisateur ou de l\'envoi de la notification', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
-        } else {
-            Log::warning('Utilisateur ou formation non trouvé pour le paiement réussi', ['payment_id' => $paiement->id]);
+            // Vérification finale après la transaction
+            $user->refresh();
+            Log::info('Rôles de l\'utilisateur après transaction', [
+                'user_id' => $user->id,
+                'roles' => $user->getRoleNames(),
+                'role_column' => $user->role
+            ]);
+
+            Log::info('Utilisateur mis à jour, ajouté à la formation et notifié', [
+                'user_id' => $user->id,
+                'formation_id' => $formation->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la mise à jour de l\'utilisateur ou de l\'envoi de la notification', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
     public function paymentCancel(Request $request, $id)
@@ -248,50 +280,51 @@ class PaytechController extends Controller
     }
     public function paymentSuccess(Request $request)
     {
-        Log::info('Affichage de la page de succès de paiement', ['request_data' => $request->all()]);
+        Log::info('Traitement du succès de paiement', ['request_data' => $request->all()]);
 
         try {
-            $user = Auth::user();
-            if (!$user) {
-                Log::warning('Tentative d\'accès à la page de succès sans authentification');
-                return redirect()->route('login')->with('error', 'Veuillez vous connecter pour voir les détails de votre paiement.');
-            }
+            // Essayer de récupérer les informations de différentes sources possibles
+            $formationId = $request->input('formation_id') ?? $request->query('formation_id');
+            $transactionId = $request->input('ref_payment') ?? $request->query('ref_command') ?? $request->query('transaction_id');
 
-            $formationId = $request->input('formation_id');
-            $transactionId = $request->input('ref_payment');
+            Log::info('Informations reçues', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
 
-            if (!$formationId && !$transactionId) {
-                Log::error('Formation ID et Transaction ID manquants dans la requête de succès');
+            if (!$formationId || !$transactionId) {
+                Log::error('Formation ID ou Transaction ID non trouvés', ['request' => $request->all()]);
                 return redirect()->route('home')->with('error', 'Informations de paiement manquantes.');
             }
 
-            $paiement = Paiement::where('user_id', $user->id)
-                                ->when($formationId, function ($query) use ($formationId) {
-                                    return $query->where('formation_id', $formationId);
-                                })
-                                ->when($transactionId, function ($query) use ($transactionId) {
-                                    return $query->where('reference', $transactionId);
-                                })
-                                ->where('status_paiement', 'payé')
-                                ->latest()
-                                ->first();
+            $paiement = Paiement::where(function ($query) use ($transactionId) {
+                $query->where('reference', $transactionId)
+                      ->orWhere('reference', 'like', "%{$transactionId}%");
+            })
+            ->where('formation_id', $formationId)
+            ->where('status_paiement', 'payé')
+            ->first();
 
             if (!$paiement) {
-                Log::warning('Paiement non trouvé pour l\'utilisateur', ['user_id' => $user->id, 'formation_id' => $formationId, 'transaction_id' => $transactionId]);
+                Log::warning('Paiement non trouvé', ['formation_id' => $formationId, 'transaction_id' => $transactionId]);
                 return redirect()->route('home')->with('error', 'Détails du paiement non trouvés.');
             }
 
-            $formation = Formation::findOrFail($paiement->formation_id);
+            Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formationId]);
 
-            Log::info('Paiement trouvé et confirmé', ['paiement_id' => $paiement->id, 'formation_id' => $formation->id]);
+            // Construire l'URL de redirection avec les paramètres nécessaires
+            $redirectUrl = self::SUCCESS_REDIRECT_URL . "?status=success&formation_id={$formationId}&transaction_id={$transactionId}";
 
-            return view('payments.success', compact('user', 'formation', 'paiement'));
+            // Effectuer la redirection
+            return redirect()->away($redirectUrl);
         } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'affichage de la page de succès', [
+            Log::error('Erreur lors du traitement du succès de paiement', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return redirect()->route('home')->with('error', 'Une erreur est survenue lors de l\'affichage de la page de succès.');
+            return redirect()->route('home')->with('error', 'Une erreur est survenue lors du traitement du paiement.');
         }
     }
+    public function home()
+    {
+        return redirect()->away(self::SUCCESS_REDIRECT_URL);
+    }
+    //Si les informations ne sont pas trouvées dans la requête, on essaie de les récupérer à partir du dernier paiement réussi enregistré dans la base de données
 }
