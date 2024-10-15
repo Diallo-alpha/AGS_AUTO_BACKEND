@@ -4,6 +4,7 @@ use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategorieController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\FormationsController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\UserFormationController;
 use App\Http\Controllers\VideoController;
 use Illuminate\Support\Facades\Route;
+
 
 
 // Routes publiques
@@ -162,6 +164,7 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     // Progressions
     Route::get('progression/{formationId}', [ProgressionController::class, 'show']);
     Route::post('progression/update', [ProgressionController::class, 'marquerVideoCommeVue']);
+    Route::get('/formations/{formationId}/certificate', [CertificateController::class, 'generate']);
 
     // Notes
     Route::post('/notes', [NoteFormationController::class, 'store'])->name('notes.store');
