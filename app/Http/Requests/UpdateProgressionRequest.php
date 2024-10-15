@@ -11,7 +11,7 @@ class UpdateProgressionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,6 +23,8 @@ class UpdateProgressionRequest extends FormRequest
     {
         return [
             //
+            'formation_id' => 'required|exists:formations,id',
+            'video_id' => 'required|exists:videos,id',
         ];
     }
 }

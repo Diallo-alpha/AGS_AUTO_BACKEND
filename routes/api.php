@@ -160,9 +160,8 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     //afficher formation d'un utilsateur
     Route::get('formation/acheter', [UserFormationController::class, 'index']);
     // Progressions
-    Route::get('/progressions/{formationId}', [ProgressionController::class, 'show'])->name('progressions.show');
-    Route::post('/progressions', [ProgressionController::class, 'store'])->name('progressions.store');
-    Route::put('/progressions/{id}', [ProgressionController::class, 'update'])->name('progressions.update');
+    Route::get('progression/{formationId}', [ProgressionController::class, 'show']);
+    Route::post('progression/update', [ProgressionController::class, 'marquerVideoCommeVue']);
 
     // Notes
     Route::post('/notes', [NoteFormationController::class, 'store'])->name('notes.store');

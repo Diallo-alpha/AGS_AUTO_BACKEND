@@ -2,30 +2,36 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreProgressionRequest;
 use App\Models\Progression;
 use App\Models\Formation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class ProgressionController extends Controller
 {
-
-
-    // Créer ou mettre à jour une progression
-    public function store(StoreProgressionRequest $request)
+    public function marquerVideoCommeVue(Request $request)
     {
         $user = Auth::user();
+        $videoId = $request->input('video_id');
+        $formationId = $request->input('formation_id');
 
-        // Création ou mise à jour de la progression
-        $progression = Progression::updateOrCreate(
-            ['formation_id' => $request->formation_id, 'user_id' => $user->id],
-            ['pourcentage' => $request->pourcentage, 'completed' => $request->pourcentage == 100]
+        $progression = Progression::firstOrCreate(
+            ['formation_id' => $formationId, 'user_id' => $user->id],
+            ['pourcentage' => 0, 'completed' => false, 'videos_regardees' => []]
         );
 
-        return response()->json(['message' => 'Progression mise à jour avec succès', 'data' => $progression], 200);
+        $progression->marquerVideoCommeVue($videoId);
+
+        return response()->json([
+            'message' => 'Progression mise à jour avec succès',
+            'data' => [
+                'pourcentage' => $progression->pourcentage,
+                'completed' => $progression->completed,
+                'videos_regardees' => $progression->videos_regardees
+            ]
+        ], 200);
     }
 
-    // Lire la progression d'un utilisateur sur une formation
     public function show($formationId)
     {
         $user = Auth::user();
@@ -35,27 +41,23 @@ class ProgressionController extends Controller
                                   ->first();
 
         if (!$progression) {
-            return response()->json(['message' => 'Progression non trouvée.'], 404);
+            return response()->json([
+                'message' => 'Progression non trouvée.',
+                'data' => [
+                    'pourcentage' => 0,
+                    'completed' => false,
+                    'videos_regardees' => []
+                ]
+            ], 200);
         }
 
-        return response()->json(['progression' => $progression], 200);
-    }
-
-    // Mettre à jour une progression
-    public function update(StoreProgressionRequest $request, $id)
-    {
-        $progression = Progression::findOrFail($id);
-
-        // Vérification que l'utilisateur est bien celui qui a la progression
-        if ($progression->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Vous n\'êtes pas autorisé à modifier cette progression.'], 403);
-        }
-
-        $progression->update([
-            'pourcentage' => $request->pourcentage,
-            'completed' => $request->pourcentage == 100,
-        ]);
-
-        return response()->json(['message' => 'Progression mise à jour avec succès', 'data' => $progression], 200);
+        return response()->json([
+            'message' => 'Progression récupérée avec succès',
+            'data' => [
+                'pourcentage' => $progression->pourcentage,
+                'completed' => $progression->completed,
+                'videos_regardees' => $progression->videos_regardees
+            ]
+        ], 200);
     }
 }
