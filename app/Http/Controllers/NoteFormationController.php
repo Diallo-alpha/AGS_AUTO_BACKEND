@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use Log;
 use App\Http\Requests\StoreNoteFormationRequest;
 use App\Http\Requests\UpdateNoteFormationRequest;
-use App\Models\NoteFormation;
 use App\Models\Formation;
+use App\Models\NoteFormation;
 use App\Models\Paiement;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,6 +15,7 @@ class NoteFormationController extends Controller
     public function store(StoreNoteFormationRequest $request)
     {
         $formation = Formation::findOrFail($request->formation_id);
+        Log::info('Données reçues:', $request->all());
 
         // Vérifier si l'utilisateur a acheté et terminé la formation
         if (!$this->userHasCompletedFormation($formation)) {
@@ -58,22 +60,12 @@ class NoteFormationController extends Controller
     {
         $user = Auth::user();
 
-        // Vérifier si l'utilisateur a acheté la formation (paiement validé)
-        $paiement = Paiement::where('formation_id', $formation->id)
-            ->where('user_id', $user->id)
-            ->where('status_paiement', 'payé') // S'assurer que le paiement est validé
-            ->first();
-
-        if (!$paiement) {
-            return false; // L'utilisateur n'a pas acheté la formation
-        }
-
         // Vérifier si l'utilisateur a terminé la formation
         $progression = $user->progressions()
             ->where('formation_id', $formation->id)
-            ->where('terminer', true)
+            ->where('completed', true)
             ->first();
 
-        return $progression ? true : false;
+        return $progression !== null;
     }
 }

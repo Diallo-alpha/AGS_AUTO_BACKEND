@@ -167,8 +167,8 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     Route::get('/formations/{formationId}/certificate', [CertificateController::class, 'generate']);
 
     // Notes
-    Route::post('/notes', [NoteFormationController::class, 'store'])->name('notes.store');
-    Route::put('/notes/{noteFormation}', [NoteFormationController::class, 'update'])->name('notes.update');
+    Route::post('/formations/{formation}/note', [NoteFormationController::class, 'store']);
+    Route::put('/note-formations/{id}', [NoteFormationController::class, 'update']);
 
     // Paiements
     Route::get('/paiements', [PaytechController::class, 'index'])->name('paiements.index');
