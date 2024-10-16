@@ -68,4 +68,29 @@ class NoteFormationController extends Controller
 
         return $progression !== null;
     }
+    //afficher les commentaire d'une formation
+    public function showFormationAvis($formationId)
+    {
+        $avis = NoteFormation::where('formation_id', $formationId)
+            ->with(['user:id,nom_complet,photo'])
+            ->orderBy('created_at', 'desc')
+            ->take(6)
+            ->get();
+
+        return response()->json([
+            'avis' => $avis->map(function ($avis) {
+                return [
+                    'id' => $avis->id,
+                    'note' => $avis->note,
+                    'avis' => $avis->avis,
+                    'created_at' => $avis->created_at,
+                    'user' => [
+                        'id' => $avis->user->id,
+                        'nom_complet' => $avis->user->nom_complet,
+                        'photo' => $avis->user->photo ? url('storage/' . $avis->user->photo) : null,
+                    ],
+                ];
+            }),
+        ]);
+    }
 }
