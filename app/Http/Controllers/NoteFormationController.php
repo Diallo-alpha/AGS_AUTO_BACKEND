@@ -71,11 +71,14 @@ class NoteFormationController extends Controller
     //afficher les commentaire d'une formation
     public function showFormationAvis($formationId)
     {
+        $formation = Formation::findOrFail($formationId);
         $avis = NoteFormation::where('formation_id', $formationId)
             ->with(['user:id,nom_complet,photo'])
             ->orderBy('created_at', 'desc')
             ->take(6)
             ->get();
+
+        $averageRating = $this->calculateAverageRating($formationId);
 
         return response()->json([
             'avis' => $avis->map(function ($avis) {
@@ -91,6 +94,14 @@ class NoteFormationController extends Controller
                     ],
                 ];
             }),
+            'average_rating' => $averageRating,
         ]);
     }
+
+    private function calculateAverageRating($formationId)
+    {
+        $averageRating = NoteFormation::where('formation_id', $formationId)->avg('note');
+        return round($averageRating, 1); 
+    }
 }
+
