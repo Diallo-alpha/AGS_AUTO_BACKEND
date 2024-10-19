@@ -1,25 +1,26 @@
 <?php
 
-use App\Http\Controllers\ArticleController;
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
-use App\Http\Controllers\CategorieController;
-use App\Http\Controllers\CertificateController;
-use App\Http\Controllers\CommandeController;
-use App\Http\Controllers\CommentaireController;
-use App\Http\Controllers\FormationsController;
-use App\Http\Controllers\NoteFormationController;
-use App\Http\Controllers\PaiementController;
-use App\Http\Controllers\PartenaireController;
-use App\Http\Controllers\PaytechController;
-use App\Http\Controllers\PhotoFormationController;
-use App\Http\Controllers\ProduitController;
-use App\Http\Controllers\ProgressionController;
-use App\Http\Controllers\RessourceController;
-use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\UserFormationController;
 use App\Http\Controllers\VideoController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ArticleController;
+use App\Http\Controllers\PaytechController;
+use App\Http\Controllers\ProduitController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\CategorieController;
+use App\Http\Controllers\RessourceController;
+use App\Http\Controllers\FormationsController;
+use App\Http\Controllers\PartenaireController;
+use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CommentaireController;
+use App\Http\Controllers\ProgressionController;
+use App\Http\Controllers\NoteFormationController;
+use App\Http\Controllers\UserFormationController;
+use App\Http\Controllers\PhotoFormationController;
+use App\Http\Controllers\PaiementProduitController;
 
 
 
@@ -93,6 +94,10 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/panier/ajouter', [CartController::class, 'ajouterAuPanier'])->name('panier.ajouter');
     Route::delete('/panier/retirer', [CartController::class, 'retirerDuPanier'])->name('panier.retirer');
     Route::put('/panier/mettre-a-jour', [CartController::class, 'mettreAJourQuantite'])->name('panier.mettreAJour');
+    //paiement produit
+    Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification']);
+    Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement']);
+    Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement']);
 });
 
 // Routes administrateur
