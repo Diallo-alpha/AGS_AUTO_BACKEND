@@ -47,8 +47,9 @@ Route::group([], function () {
     // Categories
     Route::get('categories', [CategorieController::class, 'index']);
     Route::get('categories/{id}', [CategorieController::class, 'show']);
-
-
+    Route::get('/produits/categorie/{categoriId}', [ProduitController::class, 'getProductsByCategory']);
+    //afficher les commentaires
+    Route::get('avis/{formation}', [NoteFormationController::class, 'showFormationAvis'])->name('formationavis');
 
     // Commentaires
     Route::get('/commentaires', [CommentaireController::class, 'index']);

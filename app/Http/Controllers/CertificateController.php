@@ -27,7 +27,7 @@ class CertificateController extends Controller
             'date' => now()->format('d/m/Y'),
         ];
 
-        $pdf = SnappyPdf::loadView('welcome', $data);
+        $pdf = SnappyPdf::loadView('certificat', $data);
 
         // Configuration pour s'assurer que les styles sont correctement appliqués
         $pdf->setOption('enable-local-file-access', true);
