@@ -56,6 +56,7 @@ Route::group([], function () {
     Route::get('/commentaires', [CommentaireController::class, 'index']);
     Route::get('/commentaires/{commentaire}', [CommentaireController::class, 'show']);
     Route::post('/commentaires', [CommentaireController::class, 'store']);
+    Route::get('/commentaires/artiicle/{articleid}', [CommentaireController::class, 'commentairesParArticle'])->name('commentaire.article');
 
     // Articles
     Route::get('/articles', [ArticleController::class, 'index']);
@@ -183,6 +184,9 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     Route::apiResource('ressources', RessourceController::class);
     //
     Route::get('videos/{videoId}/resources', [RessourceController::class, 'getResourcesByVideoId']);
-
+    //afficheerr lees formaations terminier
+    Route::get('formations-terminer', [ProgressionController::class, 'getFormationsTerminees']);
+    //afficher les formations en cours
+    Route::get('succes-formation', [ProgressionController::class, 'getFormationsEnCours']);
 
 });
