@@ -85,11 +85,16 @@ class ProgressionController extends Controller
                         ->first();
 
                     return [
-                        'formation' => $formation,
+                        'formation' => [
+                            'id' => $formation->id,
+                            'nom_formation' => $formation->nom_formation,
+                            'description' => $formation->description,
+                            'image' => $formation->image ? asset('storage/' . $formation->image) : null,
+                        ],
                         'progression' => [
                             'pourcentage' => $progression->pourcentage,
-                            'terminer' => $progression->completed,  // Changé ici aussi
-                            'date_completion' => $progression->updated_at
+                            'terminer' => $progression->completed,
+                            'date_completion' => $progression->updated_at->format('Y-m-d H:i:s')
                         ]
                     ];
                 })
@@ -100,53 +105,51 @@ class ProgressionController extends Controller
  * Récupère toutes les formations en cours pour l'utilisateur
  * (celles qui ont une progression mais pas à 100%)
  */
-public function getFormationsEnCours()
-{
-    $user = Auth::user();
+// public function getFormationsEnCours()
+// {
+//     $user = Auth::user();
 
-    $formationsEnCours = Formation::select('formations.*')
-        ->join('progressions', 'formations.id', '=', 'progressions.formation_id')
-        ->where('progressions.user_id', $user->id)
-        ->where(function($query) {
-            $query->where('progressions.pourcentage', '<', 100)
-                ->orWhere('progressions.completed', false);
-        })
-        ->get();
+//     // Utilisation de with() pour eager loading et éviter le N+1 problem
+//     $formationsEnCours = Formation::with(['progressions' => function ($query) use ($user) {
+//         $query->where('user_id', $user->id);
+//     }])
+//     ->whereHas('progressions', function ($query) use ($user) {
+//         $query->where('user_id', $user->id)
+//               ->where(function ($q) {
+//                   $q->where('pourcentage', '<', 100)
+//                     ->orWhere('completed', false);
+//               });
+//     })
+//     ->get();
 
-    // Si aucune formation en cours
-    if ($formationsEnCours->count() === 0) {
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Vous n\'avez aucune formation en cours',
-            'data' => [
-                'total' => 0,
-                'formations' => []
-            ]
-        ], 200);
-    }
+//     // Préparation de la réponse
+//     $formattedFormations = $formationsEnCours->map(function ($formation) {
+//         $progression = $formation->progressions->first();
 
-    // Si des formations existent
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Formations en cours récupérées avec succès',
-        'data' => [
-            'total' => $formationsEnCours->count(),
-            'formations' => $formationsEnCours->map(function ($formation) {
-                $progression = $formation->progressions()
-                    ->where('user_id', Auth::id())
-                    ->first();
+//         return [
+//             'formation' => [
+//                 'id' => $formation->id,
+//                 'titre' => $formation->titre,
+//                 // Ajoutez d'autres champs de formation nécessaires ici
+//             ],
+//             'progression' => [
+//                 'pourcentage' => $progression->pourcentage,
+//                 'terminer' => $progression->completed,
+//                 'date_derniere_activite' => $progression->updated_at,
+//                 'videos_regardees' => $progression->videos_regardees
+//             ]
+//         ];
+//     });
 
-                return [
-                    'formation' => $formation,
-                    'progression' => [
-                        'pourcentage' => $progression->pourcentage,
-                        'terminer' => $progression->completed,
-                        'date_derniere_activite' => $progression->updated_at,
-                        'videos_regardees' => $progression->videos_regardees
-                    ]
-                ];
-            })
-        ]
-    ], 200);
-}
+//     return response()->json([
+//         'status' => 'success',
+//         'message' => $formationsEnCours->count() > 0
+//             ? 'Formations en cours récupérées avec succès'
+//             : 'Vous n\'avez aucune formation en cours',
+//         'data' => [
+//             'total' => $formationsEnCours->count(),
+//             'formations' => $formattedFormations
+//         ]
+//     ], 200);
+// }
 }

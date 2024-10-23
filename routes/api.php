@@ -187,6 +187,5 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     //afficheerr lees formaations terminier
     Route::get('formations-terminer', [ProgressionController::class, 'getFormationsTerminees']);
     //afficher les formations en cours
-    Route::get('succes-formation', [ProgressionController::class, 'getFormationsEnCours']);
-
+    Route::get('succes-formation', [UserFormationController::class, 'getFormationsEnCours']);
 });

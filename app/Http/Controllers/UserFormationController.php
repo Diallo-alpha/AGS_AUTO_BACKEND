@@ -69,16 +69,95 @@ class UserFormationController extends Controller
      */
     public function index(Request $request)
     {
-        // Ajout de logs pour le débogage
+        $user = $request->user();
         Log::info('Début de la méthode index');
-        Log::info('Utilisateur connecté:', ['user' => $request->user()]);
-        Log::info('Rôles de l\'utilisateur:', ['roles' => $request->user()->getRoleNames()]);
 
-        $user = $request->user(); // Récupère l'utilisateur connecté
-        $formations = $user->formations; // Récupère les formations associées à l'utilisateur
+        // Récupère toutes les formations achetées avec leurs progressions
+        $formations = Formation::select('formations.*')
+            ->join('user_formations', 'formations.id', '=', 'user_formations.formation_id')
+            ->leftJoin('progressions', function($join) use ($user) {
+                $join->on('formations.id', '=', 'progressions.formation_id')
+                     ->where('progressions.user_id', '=', $user->id);
+            })
+            ->where('user_formations.user_id', $user->id)
+            ->with(['videos'])
+            ->get()
+            ->map(function ($formation) use ($user) {
+                $progression = $formation->progressions()
+                    ->where('user_id', $user->id)
+                    ->first();
 
-        Log::info('Formations récupérées:', ['formations' => $formations]);
+                return [
+                    'id' => $formation->id,
+                    'titre' => $formation->titre,
+                    // Autres attributs de formation
+                    'progression' => [
+                        'commencee' => !is_null($progression),
+                        'pourcentage' => $progression ? $progression->pourcentage : 0,
+                        'completed' => $progression ? $progression->completed : false,
+                        'videos_regardees' => $progression ? $progression->videos_regardees : [],
+                    ],
+                    'total_videos' => $formation->videos->count()
+                ];
+            });
 
-        return response()->json($formations);
+        return response()->json([
+            'status' => 'success',
+            'data' => $formations
+        ]);
+    }
+    //
+    public function getFormationsEnCours(Request $request)
+    {
+        $user = $request->user();
+
+        $formations = Formation::select('formations.*')
+            ->join('user_formations', 'formations.id', '=', 'user_formations.formation_id')
+            ->leftJoin('progressions', function($join) use ($user) {
+                $join->on('formations.id', '=', 'progressions.formation_id')
+                     ->where('progressions.user_id', '=', $user->id);
+            })
+            ->where('user_formations.user_id', $user->id)
+            ->where(function($query) {
+                $query->whereHas('progressions', function($q) {
+                    $q->where('pourcentage', '<', 100)
+                      ->orWhere('completed', false);
+                })
+                ->orWhereDoesntHave('progressions');
+            })
+            ->with(['videos'])
+            ->get()
+            ->map(function ($formation) use ($user) {
+                $progression = $formation->progressions()
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                return [
+                    'id' => $formation->id,
+                    'titre' => $formation->nom_formation,
+                    'image' => $formation->image ? asset('storage/' . $formation->image) : null,
+                    'progression' => [
+                        'commencee' => !is_null($progression),
+                        'pourcentage' => $progression ? $progression->pourcentage : 0,
+                        'completed' => $progression ? $progression->completed : false,
+                        'videos_regardees' => $progression ? $progression->videos_regardees : [],
+                    ],
+                    'total_videos' => $formation->videos->count()
+                ];
+            });
+
+        if ($formations->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Vous n\'avez aucune formation en cours',
+                'data' => []
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Formations en cours récupérées avec succès',
+            'data' => $formations
+        ]);
     }
 }
