@@ -1,26 +1,28 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
-use App\Http\Controllers\VideoController;
-use App\Http\Controllers\ArticleController;
-use App\Http\Controllers\PaytechController;
-use App\Http\Controllers\ProduitController;
-use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\CommandeController;
-use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\CategorieController;
-use App\Http\Controllers\RessourceController;
-use App\Http\Controllers\FormationsController;
-use App\Http\Controllers\PartenaireController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\CommentaireController;
-use App\Http\Controllers\ProgressionController;
+use App\Http\Controllers\FormationsController;
 use App\Http\Controllers\NoteFormationController;
-use App\Http\Controllers\UserFormationController;
-use App\Http\Controllers\PhotoFormationController;
+use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\PaiementProduitController;
+use App\Http\Controllers\PartenaireController;
+use App\Http\Controllers\PaytechController;
+use App\Http\Controllers\PhotoFormationController;
+use App\Http\Controllers\ProduitController;
+use App\Http\Controllers\ProgressionController;
+use App\Http\Controllers\RessourceController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\UserFormationController;
+use App\Http\Controllers\VideoController;
+use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -158,6 +160,9 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
 
     // Commandes
     Route::get('/commandes', [CommandeController::class, 'index']);
+    //afficher les statiques
+    Route::get('/statistique/utilisateurs', [StatisticsController::class, 'getUserStatistics']);
+
 });
 
 // Routes étudiant
