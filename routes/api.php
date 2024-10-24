@@ -162,6 +162,8 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
     Route::get('/commandes', [CommandeController::class, 'index']);
     //afficher les statiques
     Route::get('/statistique/utilisateurs', [StatisticsController::class, 'getUserStatistics']);
+    //statistique des contenu du platform
+    Route::get('/statistics/content', [StatisticsController::class, 'getContentStatistics']);
 
 });
 
