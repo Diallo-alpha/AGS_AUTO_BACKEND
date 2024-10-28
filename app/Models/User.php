@@ -79,4 +79,9 @@ class User extends Authenticatable implements JWTSubject
     {
         $this->formations()->attach($formation->id, ['date_achat' => now()]);
     }
+    //reservation de service
+    public function reservations()
+    {
+        return $this->hasMany(Reservation::class);
+    }
 }
