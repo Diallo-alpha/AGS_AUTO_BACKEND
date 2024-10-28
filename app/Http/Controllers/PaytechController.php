@@ -68,7 +68,7 @@ class PaytechController extends Controller
         ->setCurrency($validatedData['currency'])
         ->setNotificationUrl([
             'ipn_url' => route('paytech.notification'),
-            'success_url' => route('payment.success'),
+            'success_url' => route('paytech.successful-payment'),
             'cancel_url' => route('paytech.cancel'),
         ]);
 
@@ -256,22 +256,6 @@ class PaytechController extends Controller
     }
     public function paymentCancel(Request $request, $id)
     {
-        Log::info('Payment cancelled', ['payment_id' => $id]);
-        $payment = Paiement::findOrFail($id);
-        $payment->status_paiement = 'annulé';
-        $payment->save();
-
-        return redirect()->route('home')->with('error', 'Le paiement a été annulé.');
-    }
-    public function verifyPayment($transactionId)
-    {
-        Log::info('Verifying payment', ['transaction_id' => $transactionId]);
-        $payment = Paiement::where('reference', $transactionId)->first();
-
-        if (!$payment) {
-            return response()->json(['error' => 'Payment not found'], 404);
-        }
-
         return response()->json([
             'status' => $payment->status_paiement,
             'amount' => $payment->montant,
