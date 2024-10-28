@@ -10,6 +10,7 @@ use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\FormationsController;
 use App\Http\Controllers\NoteFormationController;
 use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\PaiementProduitController;
 use App\Http\Controllers\PartenaireController;
 use App\Http\Controllers\PaytechController;
 use App\Http\Controllers\PhotoFormationController;
@@ -17,9 +18,11 @@ use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProgressionController;
 use App\Http\Controllers\RessourceController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\UserFormationController;
 use App\Http\Controllers\VideoController;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -55,6 +58,7 @@ Route::group([], function () {
     Route::get('/commentaires', [CommentaireController::class, 'index']);
     Route::get('/commentaires/{commentaire}', [CommentaireController::class, 'show']);
     Route::post('/commentaires', [CommentaireController::class, 'store']);
+    Route::get('/commentaires/artiicle/{articleid}', [CommentaireController::class, 'commentairesParArticle'])->name('commentaire.article');
 
     // Articles
     Route::get('/articles', [ArticleController::class, 'index']);
@@ -93,6 +97,10 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/panier/ajouter', [CartController::class, 'ajouterAuPanier'])->name('panier.ajouter');
     Route::delete('/panier/retirer', [CartController::class, 'retirerDuPanier'])->name('panier.retirer');
     Route::put('/panier/mettre-a-jour', [CartController::class, 'mettreAJourQuantite'])->name('panier.mettreAJour');
+    //paiement produit
+    Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification']);
+    Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement']);
+    Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement']);
 });
 
 // Routes administrateur
@@ -152,6 +160,11 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
 
     // Commandes
     Route::get('/commandes', [CommandeController::class, 'index']);
+    //afficher les statiques
+    Route::get('/statistique/utilisateurs', [StatisticsController::class, 'getUserStatistics']);
+    //statistique des contenu du platform
+    Route::get('/statistics/content', [StatisticsController::class, 'getContentStatistics']);
+
 });
 
 // Routes étudiant
@@ -178,6 +191,8 @@ Route::middleware(['auth:api', 'role:etudiant'])->group(function() {
     Route::apiResource('ressources', RessourceController::class);
     //
     Route::get('videos/{videoId}/resources', [RessourceController::class, 'getResourcesByVideoId']);
-
-
+    //afficheerr lees formaations terminier
+    Route::get('formations-terminer', [ProgressionController::class, 'getFormationsTerminees']);
+    //afficher les formations en cours
+    Route::get('succes-formation', [UserFormationController::class, 'getFormationsEnCours']);
 });
