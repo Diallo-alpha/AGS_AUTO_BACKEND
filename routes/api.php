@@ -71,7 +71,7 @@ Route::group([], function () {
     Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
     //paiement produit
-    Route::post('/initier-paiement', [PaiementProduitController::class, 'initierPaiement']);
+    Route::post('initier-paiement', [PaiementProduitController::class, 'initierPaiement']);
     Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification']);
     Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement']);
     Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement']);
