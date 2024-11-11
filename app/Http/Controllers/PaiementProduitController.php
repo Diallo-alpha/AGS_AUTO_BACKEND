@@ -94,7 +94,7 @@ class PaiementProduitController extends Controller
                         'commande_id' => $commande->id,
                         'montant' => $montant_total,
                         'mode_paiement' => 'en attente',
-                        'reference' => $transaction_id,
+                        // 'reference' => $transaction_id,
                     ]);
                 });
             } catch (Exception $e) {
