@@ -15,7 +15,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 class PaiementProduitController extends Controller
 {
     protected $payTechService;
-    private const SUCCESS_REDIRECT_URL = 'https://votre-url-de-redirection-succes.com';
+    private const SUCCESS_REDIRECT_URL = 'https://admirable-macaron-cbfcb1.netlify.app';
 
     public function __construct(PaytechService $payTechService)
     {
@@ -161,7 +161,7 @@ class PaiementProduitController extends Controller
             return response()->json(['error' => 'Échec du traitement du paiement'], 500);
         }
     }
- 
+
     /**
      * Gère le retour de l'utilisateur après un paiement réussi.
      *
