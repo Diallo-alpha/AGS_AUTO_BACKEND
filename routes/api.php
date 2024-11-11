@@ -72,9 +72,9 @@ Route::group([], function () {
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
     //paiement produit
     Route::post('initier-paiement', [PaiementProduitController::class, 'initierPaiement']);
-    Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification']);
-    Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement']);
-    Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement']);
+    Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification'])->name('paiement.notification');
+    Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement'])->name('paiement.succes');
+    Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement'])->name('paiement.annulation');
     Route::get('/', [PaytechController::class, 'home'])->name('home');
 
     //afficher les produits
