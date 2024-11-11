@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Service;
+use App\Models\Reservation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StoreserviceRequest;
 use App\Http\Requests\UpdateserviceRequest;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
 
 class ServiceController extends Controller
 {
@@ -128,5 +130,42 @@ class ServiceController extends Controller
 
         return response()->json(['message' => 'Service supprimé avec succès']);
     }
+    
+    //Reerver une service
 
+    public function reserver(Request $request, Service $service)
+    {
+        $request->validate([
+            'date_reservation' => 'required|date|after:now',
+            'message' => 'nullable|string|max:1000'
+        ]);
+
+        // Créer la réservation
+        $reservation = Reservation::create([
+            'user_id' => Auth::id(),
+            'service_id' => $service->id,
+            'date_reservation' => $request->date_reservation,
+            'message' => $request->message
+        ]);
+
+        // Récupérer les informations du partenaire et de l'utilisateur
+        $partenaire = $service->partenaire;
+        $user = Auth::user();
+
+        // Envoyer l'email au partenaire
+        Mail::send('emails.nouvelle-reservation', [
+            'reservation' => $reservation,
+            'service' => $service,
+            'user' => $user,
+            'partenaire' => $partenaire
+        ], function($message) use ($partenaire, $service) {
+            $message->to($partenaire->email)
+                    ->subject('Nouvelle demande de réservation - ' . $service->titre);
+        });
+
+        return response()->json([
+            'message' => 'Votre demande de réservation a été envoyée au partenaire',
+            'reservation' => $reservation->load('service.partenaire')
+        ], 201);
+    }
 }

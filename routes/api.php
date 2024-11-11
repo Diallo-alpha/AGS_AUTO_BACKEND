@@ -101,6 +101,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification']);
     Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement']);
     Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement']);
+    //reserver une service
+    Route::post('services/{service}/reserver', [ServiceController::class, 'reserver']);
 });
 
 // Routes administrateur
