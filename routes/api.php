@@ -168,10 +168,10 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
     //statistique des contenu du platform
     Route::get('/statistics/content', [StatisticsController::class, 'getContentStatistics']);
 
-    //afficher les paiements
-    Route::get('/paiements', [PaiementController::class, 'index']);
-    //supprimer les paiments
-    Route::delete('/paiements/{id}', [PaiementController::class, 'destroy']);
+        //afficher les paiements
+        Route::get('/paiements-list', [PaiementProduitController::class, 'index']);
+        //supprimer les paiments
+        Route::delete('/list-paiements/{id}', [PaiementProduitController::class, 'destroy']);
 
 });
 

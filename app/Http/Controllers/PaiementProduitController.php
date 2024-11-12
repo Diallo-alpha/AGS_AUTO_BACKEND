@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Commande;
+use App\Models\Paiement;
 use App\Models\Paiement_produit;
 use App\Models\Produit;
 use App\Services\PaytechService;
@@ -271,9 +272,9 @@ class PaiementProduitController extends Controller
     //afficher tous les paiements
     public function index()
     {
-        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
-            return response()->json(['message' => 'Accès refusé'], 403);
-        }
+        // if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+        //     return response()->json(['message' => 'Accès refusé'], 403);
+        // }
 
         $paiements = Paiement::with(['user', 'formation'])->get();
 
@@ -282,9 +283,9 @@ class PaiementProduitController extends Controller
     //supprimer les paiements
     public function destroy($id)
     {
-        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
-            return response()->json(['message' => 'Accès refusé'], 403);
-        }
+        // if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+        //     return response()->json(['message' => 'Accès refusé'], 403);
+        // }
 
         $paiement = Paiement::find($id);
 
