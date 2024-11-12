@@ -60,7 +60,8 @@ class PaiementProduitController extends Controller
 
         $transaction_id = "produit-{$user->id}-" . uniqid();
 
-        $paytech = $this->payTechService->setQuery([
+        $paytech = new PaytechService(env('PAYTECH_API_KEY'), env('PAYTECH_API_SECRET'));
+        $paytech->setQuery([
             'item_name' => 'Achat de produits',
             'item_price' => $montant_total,
             'command_name' => "Commande de produits",
@@ -129,36 +130,41 @@ class PaiementProduitController extends Controller
         $ref_command = $request->input('ref_command');
         $payment_method = $request->input('payment_method');
 
-        if (!$this->verifierSignaturePaytech($request)) {
+        $my_api_key = env('PAYTECH_API_KEY', '3e80a4c267a89a4fb9c8ee8cd93d7c06fe1362a43f6188d396cc543631585abd');
+        $my_api_secret = env('PAYTECH_API_SECRET', '0ff8d65e5c9c6a8e3b839d6b8065ed1384ceb9b037ad6cf31effe7504d3d7c14');
+
+        if (hash('sha256', $my_api_secret) === $request->input('api_secret_sha256') && hash('sha256', $my_api_key) === $request->input('api_key_sha256')) {
+            Log::info('Notification validée comme provenant de PayTech');
+
+            try {
+                DB::transaction(function () use ($ref_command, $type_event, $payment_method) {
+                    $paiement = Paiement_produit::where('reference', $ref_command)->firstOrFail();
+                    $commande = $paiement->commande;
+
+                    $status_paiement = $this->obtenirStatutPaiement($type_event);
+                    $paiement->mode_paiement = $this->mapperMethodePaiement($payment_method);
+                    $paiement->save();
+
+                    $commande->status = $status_paiement === 'payé' ? 'en attente de livraison' : 'annulé';
+                    $commande->save();
+
+                    if ($status_paiement === 'payé') {
+                        $this->traiterPaiementReussi($commande);
+                    }
+                });
+
+                Log::info('Paiement de produit mis à jour', ['ref_command' => $ref_command, 'status' => $status_paiement]);
+                return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
+            } catch (Exception $e) {
+                Log::error('Erreur lors du traitement de la notification de paiement de produit', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                return response()->json(['error' => 'Échec du traitement du paiement'], 500);
+            }
+        } else {
             Log::warning('Notification de paiement de produit non valide - Signature incorrecte');
             return response()->json(['error' => 'Signature invalide'], 400);
-        }
-
-        try {
-            DB::transaction(function () use ($ref_command, $type_event, $payment_method) {
-                $paiement = Paiement_produit::where('reference', $ref_command)->firstOrFail();
-                $commande = $paiement->commande;
-
-                $status_paiement = $this->obtenirStatutPaiement($type_event);
-                $paiement->mode_paiement = $this->mapperMethodePaiement($payment_method);
-                $paiement->save();
-
-                $commande->status = $status_paiement === 'payé' ? 'en attente de livraison' : 'annulé';
-                $commande->save();
-
-                if ($status_paiement === 'payé') {
-                    $this->traiterPaiementReussi($commande);
-                }
-            });
-
-            Log::info('Paiement de produit mis à jour', ['ref_command' => $ref_command, 'status' => $status_paiement]);
-            return response()->json(['success' => true, 'message' => 'Paiement traité avec succès']);
-        } catch (Exception $e) {
-            Log::error('Erreur lors du traitement de la notification de paiement de produit', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Échec du traitement du paiement'], 500);
         }
     }
 
@@ -177,12 +183,8 @@ class PaiementProduitController extends Controller
             $paiement = Paiement_produit::where('reference', $transaction_id)->firstOrFail();
             $commande = $paiement->commande;
 
-            return redirect(self::SUCCESS_REDIRECT_URL)->with([
-                'status' => 'success',
-                'message' => 'Votre paiement a été traité avec succès.',
-                'commande_id' => $commande->id,
-                'montant' => $commande->somme,
-            ]);
+            $redirectUrl = self::SUCCESS_REDIRECT_URL . "?status=success&commande_id={$commande->id}&transaction_id={$transaction_id}";
+            return redirect()->away($redirectUrl);
         } catch (Exception $e) {
             Log::error('Erreur lors du traitement du succès de paiement de produit', [
                 'error' => $e->getMessage(),
@@ -202,21 +204,6 @@ class PaiementProduitController extends Controller
     {
         Log::info('Annulation du paiement de produit par l\'utilisateur', ['request_data' => $request->all()]);
         return redirect()->route('home')->with('info', 'Votre paiement a été annulé.');
-    }
-
-    /**
-     * Vérifie la signature de la notification Paytech.
-     *
-     * @param  Request  $request
-     * @return bool
-     */
-    private function verifierSignaturePaytech(Request $request)
-    {
-        $api_key = env('PAYTECH_API_KEY');
-        $api_secret = env('PAYTECH_API_SECRET');
-
-        return hash('sha256', $api_secret) === $request->input('api_secret_sha256')
-            && hash('sha256', $api_key) === $request->input('api_key_sha256');
     }
 
     /**

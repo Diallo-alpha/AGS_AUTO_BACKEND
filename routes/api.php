@@ -70,6 +70,11 @@ Route::group([], function () {
     Route::get('/paytech/success', [PaytechController::class, 'paymentSuccess'])->name('payment.success');
     Route::get('/paytech/cancel', [PaytechController::class, 'paymentCancel'])->name('paytech.cancel');
     Route::get('/verify-payment', [PaytechController::class, 'verifyPayment'])->name('payment.verify');
+    //paiement produit
+    Route::post('initier-paiement', [PaiementProduitController::class, 'initierPaiement']);
+    Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification'])->name('paiement.notification');
+    Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement'])->name('paiement.succes');
+    Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement'])->name('paiement.annulation');
     Route::get('/', [PaytechController::class, 'home'])->name('home');
 
     //afficher les produits
@@ -97,10 +102,6 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/panier/ajouter', [CartController::class, 'ajouterAuPanier'])->name('panier.ajouter');
     Route::delete('/panier/retirer', [CartController::class, 'retirerDuPanier'])->name('panier.retirer');
     Route::put('/panier/mettre-a-jour', [CartController::class, 'mettreAJourQuantite'])->name('panier.mettreAJour');
-    //paiement produit
-    Route::post('paiement-notification', [PaiementProduitController::class, 'gererNotification']);
-    Route::get('paiement-succes', [PaiementProduitController::class, 'gererSuccesPaiement']);
-    Route::get('paiement-annulation', [PaiementProduitController::class, 'gererAnnulationPaiement']);
     //reserver une service
     Route::post('services/{service}/reserver', [ServiceController::class, 'reserver']);
 });
