@@ -20,7 +20,7 @@ class CommandeController extends Controller
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        $commandes = Commande::with('produits')->get();
+        $commandes = Commande::with('produits', 'user')->get();
 
         return response()->json($commandes, 200);
     }

@@ -84,4 +84,9 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(Reservation::class);
     }
+    //commande pour les utilisateurs
+    public function commandes()
+    {
+        return $this->hasMany(Commande::class);
+    }
 }

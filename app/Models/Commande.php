@@ -20,4 +20,10 @@ class Commande extends Model
     {
         return $this->hasOne(Paiement_produit::class);
     }
+    //commande pour les utilisateurs
+    public function user()
+{
+    return $this->belongsTo(User::class);
+}
+
 }
