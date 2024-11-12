@@ -267,4 +267,36 @@ class PaiementProduitController extends Controller
 
         Log::info('Paiement de produit réussi traité', ['commande_id' => $commande->id]);
     }
+
+    //afficher tous les paiements
+    public function index()
+    {
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $paiements = Paiement::with(['user', 'formation'])->get();
+
+        return response()->json($paiements, 200);
+    }
+    //supprimer les paiements
+    public function destroy($id)
+    {
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $paiement = Paiement::find($id);
+
+        if (!$paiement) {
+            return response()->json(['message' => 'Paiement non trouvé'], 404);
+        }
+
+        try {
+            $paiement->delete();
+            return response()->json(['message' => 'Paiement supprimé avec succès'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur lors de la suppression du paiement', 'erreur' => $e->getMessage()], 500);
+        }
+    }
 }
