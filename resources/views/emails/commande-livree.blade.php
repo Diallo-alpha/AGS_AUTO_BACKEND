@@ -44,7 +44,7 @@
             <ul>
                 <li>Numéro de commande : #{{ $commande->id }}</li>
                 <li>Date de commande : {{ $commande->date }}</li>
-                <li>Montant total : {{ number_format($commande->somme, 2) }} €</li>
+                <li>Montant total : {{ number_format($commande->somme, 0) }} CF</li>
             </ul>
 
             <p>Nous vous remercions de votre confiance et espérons vous revoir bientôt !</p>
