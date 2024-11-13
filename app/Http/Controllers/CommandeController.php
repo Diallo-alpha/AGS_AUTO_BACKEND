@@ -8,6 +8,7 @@ use App\Models\Commande_produit;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\StoreCommandeRequest;
 use App\Http\Requests\UpdateCommandeRequest;
+use App\Notifications\CommandeLivreeNotification;
 
 class CommandeController extends Controller
 {
@@ -85,43 +86,119 @@ class CommandeController extends Controller
      */
     public function update(UpdateCommandeRequest $request, $id)
     {
-        if (!auth()->check()) {
-            return response()->json(['message' => 'Accès refusé'], 403);
+        \Log::info('Début de la mise à jour de la commande:', ['id' => $id]);
+
+        // Vérification admin
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+            \Log::warning('Tentative d\'accès non autorisée:', [
+                'user_id' => auth()->id(),
+                'roles' => auth()->user() ? auth()->user()->roles : 'non connecté'
+            ]);
+            return response()->json(['message' => 'Accès refusé - Réservé aux administrateurs'], 403);
         }
 
-        $commande = Commande::find($id);
+        // Récupération de la commande
+        $commande = Commande::with('user')->find($id);
         if (!$commande) {
+            \Log::info('Commande non trouvée:', ['id' => $id]);
             return response()->json(['message' => 'Commande non trouvée'], 404);
         }
 
-        // Valider les données de la requête
-        $validatedData = $request->validated();
-
-        // Mettre à jour les informations de la commande
-        // Assurez-vous de ne mettre à jour que les champs de la commande
-        $commande->update([
-            'somme' => $validatedData['somme'] ?? $commande->somme,
-            'status' => $validatedData['status'] ?? $commande->status,
-            'date' => $validatedData['date'] ?? $commande->date,
+        // Vérification des données utilisateur
+        \Log::info('Données utilisateur de la commande:', [
+            'commande_id' => $commande->id,
+            'user_id' => $commande->user_id,
+            'user_email' => $commande->user->email ?? 'Email manquant',
+            'user_exists' => isset($commande->user),
         ]);
 
-        // Si des produits sont fournis, les mettre à jour dans la table pivot
-        if (isset($validatedData['produits'])) {
-            // Supprime les anciens produits associés
-            Commande_produit::where('commande_id', $commande->id)->delete();
+        // Validation des données
+        $validatedData = $request->validated();
+        \Log::info('Données validées reçues:', $validatedData);
 
-            // Insère les nouveaux produits
-            foreach ($validatedData['produits'] as $produit) {
-                Commande_produit::create([
-                    'commande_id' => $commande->id,
-                    'produit_id' => $produit['produit_id'],
-                    'quantite' => $produit['quantite'],
-                    'prix_unitaire' => $produit['prix_unitaire'],
+        $oldStatus = $commande->status;
+        \Log::info('Status de la commande:', [
+            'ancien' => $oldStatus,
+            'nouveau' => $validatedData['status'] ?? $oldStatus
+        ]);
+
+        // Mise à jour de la commande
+        try {
+            $commande->update([
+                'somme' => $validatedData['somme'] ?? $commande->somme,
+                'status' => $validatedData['status'] ?? $commande->status,
+                'date' => $validatedData['date'] ?? $commande->date,
+            ]);
+            \Log::info('Commande mise à jour avec succès');
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la mise à jour de la commande:', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            return response()->json(['message' => 'Erreur lors de la mise à jour'], 500);
+        }
+
+        // Vérification et envoi de la notification
+        if (($validatedData['status'] ?? $oldStatus) === 'liverer' && $oldStatus !== 'liverer') {
+            \Log::info('Tentative d\'envoi de notification:', [
+                'commande_id' => $commande->id,
+                'user_id' => $commande->user_id,
+                'user_email' => $commande->user->email ?? 'Email manquant'
+            ]);
+
+            try {
+                // Vérification de la configuration mail
+                \Log::info('Configuration mail:', [
+                    'driver' => config('mail.driver'),
+                    'host' => config('mail.host'),
+                    'port' => config('mail.port'),
+                    'from_address' => config('mail.from.address'),
+                ]);
+
+                // Vérification que l'utilisateur peut recevoir des notifications
+                if (!$commande->user || !method_exists($commande->user, 'notify')) {
+                    throw new \Exception('Utilisateur non notifiable');
+                }
+
+                $commande->user->notify(new CommandeLivreeNotification($commande));
+                \Log::info('Notification envoyée avec succès');
+            } catch (\Exception $e) {
+                \Log::error('Erreur lors de l\'envoi de la notification:', [
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
                 ]);
             }
         }
 
-        return response()->json(['message' => 'Commande mise à jour avec succès'], 200);
+        // Mise à jour des produits
+        if (isset($validatedData['produits'])) {
+            try {
+                \Log::info('Début de la mise à jour des produits');
+                Commande_produit::where('commande_id', $commande->id)->delete();
+
+                foreach ($validatedData['produits'] as $produit) {
+                    Commande_produit::create([
+                        'commande_id' => $commande->id,
+                        'produit_id' => $produit['produit_id'],
+                        'quantite' => $produit['quantite'],
+                        'prix_unitaire' => $produit['prix_unitaire'],
+                    ]);
+                }
+                \Log::info('Produits mis à jour avec succès');
+            } catch (\Exception $e) {
+                \Log::error('Erreur lors de la mise à jour des produits:', [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Commande mise à jour avec succès',
+            'commande' => $commande->fresh()->load('produits')
+        ], 200);
     }
 
     /**
