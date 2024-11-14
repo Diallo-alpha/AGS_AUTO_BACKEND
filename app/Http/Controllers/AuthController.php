@@ -17,9 +17,24 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'nom_complet' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:6|confirmed',
+            'password_confirmation' => 'required',
             'telephone' => 'required|string|max:15|unique:users',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:12077',
+        ],[
+            'nom_complet.required' => 'Le nom complet est requis',
+            'email.required' => 'L\'adresse email est requise',
+            'email.email' => 'L\'adresse email doit être valide',
+            'email.unique' => 'Cette adresse email est déjà utilisée',
+            'password.required' => 'Le mot de passe est requis',
+            'password.min' => 'Le mot de passe doit contenir au moins 6 caractères',
+            'password.confirmed' => 'Les mots de passe ne correspondent pas',
+            'password_confirmation.required' => 'La confirmation du mot de passe est requise',
+            'telephone.required' => 'Le numéro de téléphone est requis',
+            'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé',
+            'photo.image' => 'Le fichier doit être une image',
+            'photo.mimes' => 'L\'image doit être au format jpeg, png ou jpg',
+            'photo.max' => 'L\'image ne doit pas dépasser 12 Mo'
         ]);
 
         if ($validator->fails()) {
