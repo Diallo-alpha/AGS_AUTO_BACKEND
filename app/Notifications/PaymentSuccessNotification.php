@@ -29,7 +29,7 @@ class PaymentSuccessNotification extends Notification
     {
         return (new MailMessage)
                     ->line('Votre paiement a été effectué avec succès.')
-                    ->line('Formation : ' . $this->formation->name)
+                    ->line('Formation : ' . $this->formation->nom_formation)
                     ->line('Montant payé : ' . $this->paiement->montant)
                     ->action('Voir les détails', url('/formations/' . $this->formation->id))
                     ->line('Merci d\'avoir choisi notre plateforme!');

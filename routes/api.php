@@ -9,6 +9,8 @@ use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\FormationsController;
 use App\Http\Controllers\NoteFormationController;
+use App\Http\Controllers\Notification;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\PaiementProduitController;
 use App\Http\Controllers\PartenaireController;
@@ -167,11 +169,19 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
     Route::get('/statistique/utilisateurs', [StatisticsController::class, 'getUserStatistics']);
     //statistique des contenu du platform
     Route::get('/statistics/content', [StatisticsController::class, 'getContentStatistics']);
+    //afficher les paiements
+    Route::get('/paiements-list', [PaiementProduitController::class, 'index']);
+    //supprimer les paiments
+    Route::delete('/list-paiements/{id}', [PaiementProduitController::class, 'destroy']);
 
-        //afficher les paiements
-        Route::get('/paiements-list', [PaiementProduitController::class, 'index']);
-        //supprimer les paiments
-        Route::delete('/list-paiements/{id}', [PaiementProduitController::class, 'destroy']);
+    // Récupérer toutes les notifications
+    Route::get('/notifications', [NotificationController::class, 'getAllNotifications'])->name('notifications.all');
+
+    // Récupérer une notification spécifique
+    Route::get('/notifications/{id}', [NotificationController::class, 'getNotification'])->name('notifications.show');
+
+    // Supprimer une notification
+    Route::delete('/notifications/{id}', [NotificationController::class, 'deleteNotification'])->name('notifications.delete');
 
 });
 

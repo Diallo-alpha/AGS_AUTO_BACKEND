@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use Log;
+use App\Models\User;
 use App\Models\Commande;
 use App\Models\Commande_produit;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\StoreCommandeRequest;
 use App\Http\Requests\UpdateCommandeRequest;
 use App\Notifications\CommandeLivreeNotification;
+use App\Notifications\CommandeRecueNotification;
 
 class CommandeController extends Controller
 {
@@ -31,13 +33,11 @@ class CommandeController extends Controller
      */
     public function store(StoreCommandeRequest $request)
     {
-        // \Log::info('Données reçues:', $request->all());
-
-        // Les données sont déjà validées via StoreCommandeRequest
+        // Valider les données de la requête
         $validatedData = $request->validated();
 
         try {
-            // Crée la commande
+            // Créer la commande
             $commande = Commande::create([
                 'user_id' => Auth::id(),
                 'somme' => $validatedData['somme'],
@@ -45,7 +45,7 @@ class CommandeController extends Controller
                 'date' => $validatedData['date'],
             ]);
 
-            // Insère les produits dans la table pivot
+            // Insérer les produits dans la table pivot
             foreach ($validatedData['produits'] as $produit) {
                 Commande_produit::create([
                     'commande_id' => $commande->id,
@@ -53,19 +53,29 @@ class CommandeController extends Controller
                     'quantite' => $produit['quantite'],
                     'prix_unitaire' => $produit['prix_unitaire'],
                 ]);
-
-                // Débogage pour chaque produit ajouté
-                \Log::info('Produit ajouté : ', $produit);
             }
 
-            // Si tout fonctionne, renvoyer une réponse de succès
+            // Envoyer la notification aux administrateurs avec gestion des erreurs
+            try {
+                $admins = User::role('admin')->get();
+                foreach ($admins as $admin) {
+                    $admin->notify(new CommandeRecueNotification($commande));
+                }
+            } catch (\Exception $e) {
+                // Journaliser l'erreur si l'envoi de la notification échoue
+                \Log::error('Erreur lors de l\'envoi des notifications aux administrateurs : ' . $e->getMessage());
+                // Optionnel : vous pouvez ajouter un message d'erreur personnalisé ici
+            }
+
+            // Retourner une réponse de succès
             return response()->json(['message' => 'Commande créée avec succès'], 201);
         } catch (\Exception $e) {
-            // En cas d'erreur, renvoyer une réponse avec un code 500
+            // Journaliser l'erreur et retourner une réponse 500 en cas d'échec de la création de la commande
             \Log::error('Erreur lors de la création de la commande : ' . $e->getMessage());
             return response()->json(['message' => 'Erreur lors de la création de la commande', 'erreur' => $e->getMessage()], 500);
         }
     }
+
 
     /**
      * Affiche une commande spécifique.

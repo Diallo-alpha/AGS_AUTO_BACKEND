@@ -64,7 +64,7 @@ class PaymentFailureNotification extends Notification implements ShouldQueue
     public function toArray($notifiable)
     {
         return [
-            'formation_name' => $this->formation->nom,
+            'formation_name' => $this->formation->nom_formation,
             'amount' => number_format($this->paiement->montant, 2),
             'currency' => $this->paiement->devise,
             'payment_status' => 'échoué',
